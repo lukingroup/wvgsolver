@@ -9,5 +9,4 @@ setup(
   author = "Vassilios Kaxiras",
   author_email = "vassilioskaxiras@gmail.com",
   description = "1D Cavity Waveguide and Unit Cell simulations",
-  license = "GNU General Public License v3 (GPLv3)",
 )
