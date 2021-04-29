@@ -1,10 +1,14 @@
 from abc import ABC, abstractmethod
 from ..utils.misc import randstring
 import logging
+import copy
 
 class Engine(ABC):
   def __init__(self):
     self.name = "abstract"
+
+  def __repr__(self):
+    return "Engine(%s)" % self.name
 
   @abstractmethod
   def new_session(self):
@@ -14,16 +18,12 @@ class Session(ABC):
   def __init__(self, engine):
     self.name = randstring()
     self.engine = engine
-    self.engine_options = {}
     self.analyzers = {}
 
-    logging.debug("Started '%s' session with name '%s'" % (self.engine.name, self.name))
+    logging.info("Started '%s' session with name '%s'" % (self.engine.name, self.name))
 
   def __del__(self):
     self.close()
-
-  def set_engine_options(self, engine_options):
-    self.engine_options = engine_options
 
   @abstractmethod
   def close(self):
@@ -72,8 +72,20 @@ class Session(ABC):
 
     return self.analyzers[k].analyze(self, *args, **kwargs)
 
+  @abstractmethod
+  def get_postrunres(self):
+    pass
+
   def run(self, analysis={}, analyze=True):
     self._prerun()
+
+    # Clean up the last run's analyzers
+    if isinstance(self.analyzers, dict):
+      for a in self.analyzers.values():
+        a.cleanup(self)
+    elif self.analyzers:
+      self.analyzers.cleanup(self)
+    self.analyzers = analysis
 
     if isinstance(analysis, dict):
       for a in analysis.values():
@@ -81,18 +93,24 @@ class Session(ABC):
     else:
       analysis.setup(self)
 
-    self._runsim(self.engine_options)
+    self._runsim()
 
     output = None
     if analyze:
       output = {}
-      if isinstance(analysis, dict):
-        for k, a in analysis.items():
+      if isinstance(self.analyzers, dict):
+        for k, a in self.analyzers.items():
           output[k] = a.analyze(self)
       else:
-        output = analysis.analyze(self)
-    else:
-      self.analyzers = analysis
+        output = self.analyzers.analyze(self)
 
     return output
 
+class SessionResult(ABC):
+  def get_clean(self):
+    engine = self.engine
+    del self.engine
+    c = copy.deepcopy(self)
+    self.engine = engine
+    return c
+    

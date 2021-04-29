@@ -9,4 +9,4 @@ class EngineSpecific(ABC):
       raise NotImplementedError("Function '%s' is not implemented for engine '%s'" % \
               (name, engine_name))
 
-    return getattr(self, fname)(*args, **kwargs)
+    return getattr(self, fname)(session, *args, **kwargs)

@@ -1,0 +1,6 @@
+gdspy
+numpy
+trimesh
+triangle
+shapely
+phidl

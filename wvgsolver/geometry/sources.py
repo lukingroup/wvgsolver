@@ -1,32 +1,49 @@
 from .base import Source
-from ..utils.constants import C_LIGHT, AXIS_Z
-from ..utils.linalg import Vec3
+from ..utils.constants import AXIS_X, AXIS_Y, AXIS_Z
+from ..utils.linalg import Vec3, axis_to_spherical
+import numpy as np
 import math
 
 class DipoleSource(Source):
-  def __init__(self, lrange=None, frange=None, pos=Vec3(0.0), axis=Vec3(0.0, 0.0, 1.0)):
-    super().__init__(self)
-    if lrange is None and frange is None:
-      raise TypeError("One of lrange and frange must be set")
-
-    if lrange is not None:
-      self.lambda_start = lrange[0]
-      self.lambda_end = lrange[1]
-    elif frange is not None:
-      self.lambda_start = C_LIGHT / frange[1]
-      self.lambda_end = C_LIGHT / frange[0]
-
+  def __init__(self, frange=None, f=None, pulse_length=None, pulse_offset=None, pos=Vec3(0.0), axis=Vec3(0.0, 0.0, 1.0), phase=0.0):
+    super().__init__(pos, frange, f, pulse_length, pulse_offset)
     self.axis = axis
-    self.pos = pos
+    self.phase = phase
 
   def _add_lumerical(self, session):
-    axis = self.axis.normalized()
-    theta = math.acos(axis.z) * 180 / math.pi
-    phi = math.copysign(90, axis.y)
-    if axis.x != 0.0:
-      phi = math.atan(axis.y/axis.x) * 180 / math.pi
+    theta, phi = axis_to_spherical(self.axis)
 
-    session.fdtd.adddipole(x=self.pos.x, y=self.pos.y, z=self.pos.z,
-      wavelength_start=self.lambda_start, wavelength_stop=self.lambda_end,
-      theta=theta, phi=phi, name=self.name)
+    dipole = session.fdtd.adddipole(theta=theta, phi=phi, phase=180*self.phase/np.pi)
+    self._config_freq_lumerical(dipole)
 
+# Only supports fundamental mode for now
+class ModeSource(Source):
+  def __init__(self, frange=None, f=None, pulse_length=None, pulse_offset=None, pos=Vec3(0.0), axis=AXIS_X, \
+      direction=1, amplitude=1, phase=0, size=Vec3(1e-6)):
+    super().__init__(pos, frange, f, pulse_length, pulse_offset)
+    self.axis = axis
+    self.direction = direction
+    self.amplitude = amplitude
+    self.phase = phase
+    self.size = size
+
+  def _add_lumerical(self, session):
+    axis_map = {}
+    axis_map[AXIS_X] = 1
+    axis_map[AXIS_Y] = 2
+    axis_map[AXIS_Z] = 3
+
+    mode = session.fdtd.addmode(injection_axis=axis_map[self.axis], direction=2 if self.direction > 0 else 1, \
+      amplitude=self.amplitude, phase=self.phase)
+    self._config_freq_lumerical(mode)
+
+    if self.axis == AXIS_X:
+      mode.y_span = self.size.y
+      mode.z_span = self.size.z
+    elif self.axis == AXIS_Y:
+      mode.x_span = self.size.x
+      mode.z_span = self.size.z
+    else:
+      mode.x_span = self.size.x
+      mode.y_span = self.size.y
+  

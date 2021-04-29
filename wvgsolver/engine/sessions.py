@@ -4,7 +4,11 @@ import time
 import threading
 import glob
 import logging
+import tempfile
+from ..parse.engine import LumericalFSPFile
 
+# TODO: Check why this is breaking, and make it delete 
+# log files to be more robust
 def lumericalLogFile(dir_path, name, stop):
   fps = {}
   while not stop.is_set():
@@ -15,16 +19,13 @@ def lumericalLogFile(dir_path, name, stop):
         if log_name[0] == "_":
           log_name = log_name[1:]
 
-        first = False
         if f not in fps:
           fps[f] = open(f, "r")
-#          first = True
 
         while True:
           line = fps[f].readline()
           if line:
-            if not first:
-              logging.info("[" + log_name + "] " + line.rstrip("\n\r"))
+            logging.info("[" + log_name + "] " + line.rstrip("\n\r"))
           else:
             break
       except Exception:
@@ -65,15 +66,26 @@ class LumericalSession(Session):
       "pmc": 7
     }
 
-    self.working_path = os.path.join(self.engine.working_path, self.name)
+    if self.engine.temp_dir:
+      self.temp_dir = tempfile.TemporaryDirectory(dir=self.engine.working_path)
+      self.working_path = self.temp_dir.name
+    else:
+      self.temp_dir = None
+      self.working_path = os.path.join(self.engine.working_path, self.name)
+      if not os.path.isdir(self.working_path):
+        os.mkdir(self.working_path)
 
-    if not os.path.isdir(self.working_path):
-      os.mkdir(self.working_path)
+    self.working_path = os.path.abspath(self.working_path)
+    self.save_path = os.path.join(self.working_path, self.name + ".fsp")
+    self.fsp_data = None
 
-    self.fdtd = self.engine.lumapi.FDTD()
+    self.fdtd = self.engine.lumapi.FDTD(hide=self.engine.hide)
     self.fdtd.addstructuregroup(name=self.structures)
     self.fdtd.addgroup(name=self.sources)
-    self.sim_region = self.fdtd.addfdtd(mesh_accuracy=4)
+    self.sim_region = self.fdtd.addfdtd(mesh_accuracy=self.engine.mesh_accuracy, use_early_shutoff=False)
+    self.sim_region.pml_profile = 4
+    self.sim_region.pml_min_layers = self.engine.pml_layers
+    self.sim_region.pml_max_layers = self.engine.pml_layers
 
   def close(self):
     if self.fdtd is not None:
@@ -126,23 +138,46 @@ class LumericalSession(Session):
           self.sim_region["set based on source angle"] = False
           self.sim_region["bloch units"] = 1
           self.sim_region["k" + key] = boundaries[key]["k"]
+        elif val != "periodic":
+          self.sim_region[key + " max bc"] = self.boundary_values_map[val]
       else:
         mapped_key = self.boundary_keys_map[key]
-        if not self.fdtd.ispropertyactive(self.sim_region.name, mapped_key):
-          self.sim_region[mapped_key[0] + " min bc"] = 1
-        self.sim_region[mapped_key] = self.boundary_values_map[val]
+        min_key = mapped_key[0] + " min bc"
+        if self.sim_region[min_key] in [3, 6]:
+          self.sim_region[min_key] = 1
+        self.sim_region[mapped_key] = self.boundary_values_map[boundaries[key]]
   
   def _prerun(self):
     self.fdtd.switchtolayout()
-          
-  def _runsim(self, options={}):
+    for f in glob.iglob(os.path.join(self.working_path, self.name + "*.log")):
+      try:
+        os.remove(f)
+      except:
+        pass
+  
+  def _load_fsp(self):
+    if self.engine.save_fsp:
+      self.fsp_data = open(self.save_path, "rb").read()
+    else:
+      self.fsp_data = None
+
+  def _runsim(self):
     self.fdtd.switchtolayout()
-    self.fdtd.save(os.path.join(self.working_path, self.name + ".fsp"))
+    self.fdtd.save(self.save_path)
+    self._load_fsp()
 
     stop_logging = threading.Event()
-    if not "silent" in options or not options["silent"]:
-      threading.Thread(target=lumericalLogFile, args=(self.working_path, self.name, stop_logging)).start()
+    threading.Thread(target=lumericalLogFile, args=(self.working_path, self.name, stop_logging)).start()
 
-    self.fdtd.run()
+    try:
+      self.fdtd.run()
+    except Exception:
+      stop_logging.set()
+      raise
 
     stop_logging.set()
+  
+  def get_postrunres(self):
+    if self.fsp_data or not self.temp_dir:
+      return LumericalFSPFile(self.fsp_data, self.save_path if not self.temp_dir else None, self.engine)
+    return None
