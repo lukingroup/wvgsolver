@@ -24,8 +24,9 @@ class SimulationObject(ABC):
     """
     Parameters
     ----------
-    engine : Engine
-      The engine to run the simulations of this object on
+    engine : Engine or None
+      The engine to run the simulations of this object on. If not provided, we default to an
+      instance of LumericalEngine
     load_path : str or None
       The file path to load this object from. If this parameter is not None, then the object from
       that file is loaded and you are not expected to modify the object further

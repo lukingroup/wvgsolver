@@ -3,10 +3,15 @@
 ## Installation
 
 ```
+pip install -r requirements.txt
 pip install .
 ```
 
 From the root repository directory
+
+## Examples
+
+See the `examples/` directory.
 
 ## Documentation
 
@@ -100,7 +105,7 @@ example, to get all results from "resonance" simulations on a cavity, call
 res = cavity.get_results("resonance")
 ```
 
-See `wvgsolver/simulation/base.py` for a description of the parameters of `get_results()`.
+See `wvgsolver/simulation/base.py` for a description of the parameters and return type of `get_results()`.
 
 ### Saving and loading objects
 

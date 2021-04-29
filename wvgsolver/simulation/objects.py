@@ -64,7 +64,7 @@ class UnitCell(SimulationObject):
   def get_size(self):
     return self._size
 
-  def _simulate_bandgap(self, sess, freqs=(0.2e15, 0.7e15, 100000), min_gap=1e13, k=0.5, **kwargs):
+  def _simulate_bandgap(self, sess, freqs=(0.2e15, 0.6e15, 100000), min_gap=1e13, k=0.5, **kwargs):
     """Simulates and calculates the bandgap of this unit cell. It does this by simulating the 
     bandstructure at the given normalized wave vector (usually 0.5), finding the two highest peaks
     in the frequency domain around the region of interest, and returns them sorted.
@@ -306,7 +306,7 @@ class Cavity1D(SimulationObject):
 
     return Vec3(x, y, z)
 
-  def _simulate_quasipotential(self, target_freq=1e15, **kwargs):
+  def _simulate_quasipotential(self, target_freq=400e12, **kwargs):
     """Simulates the quasipotential of the cavity by calculating the bandgap of each unit cell,
     and taking the minimum difference between the target frequency and each of the two
     edges of the gap. This distance can be negative, if the target frequency lies outside the gap.
@@ -331,7 +331,7 @@ class Cavity1D(SimulationObject):
     
     return Quasipotential(output)
 
-  def _simulate_guidedness(self, sess, target_freq=1e15, sim_size=Vec3(3, 4, 4), source_pos=-1, freq_span=0, sim_time=200e-15, source_size=3, TEonly=True):
+  def _simulate_guidedness(self, sess, target_freq=400e12, sim_size=Vec3(3, 4, 4), source_pos=-1, freq_span=0, sim_time=200e-15, source_size=3, TEonly=True):
     """Simulates the guidedness of the cavity by using a mode source in the positive x direction and calculating 
     the transmission and reflection coefficients along the x axis. The sum of these coefficients indicates the 
     fraction of light from the mode source that remains guided along the x axis
@@ -379,7 +379,7 @@ class Cavity1D(SimulationObject):
 
     return res["pxmax"] - res["pxmin"]
 
-  def _simulate_resonance(self, sess, target_freq=1e15, source_pulselength=60e-15, analyze_fspan=3e14, \
+  def _simulate_resonance(self, sess, target_freq=400e12, source_pulselength=60e-15, analyze_fspan=3e14, \
       analyze_time=590e-15, TEonly=True, sim_size=Vec3(2, 4, 4), energy_downsample=2):
     """Simulate the cavity's resonance frequency and obtain directional Q factors, mode volume, and 
     electric field profile data. The simulation comprises of one dipole polarized along the y-axis
