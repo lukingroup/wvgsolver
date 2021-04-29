@@ -151,3 +151,15 @@ parsed.show()
 ```
 
 See `wvgsolver/parse/object.py` for documentation on the parser.
+
+### Logging
+
+While running simulations, wvgsolver uses Python's built-in logging package to log progress.
+For example, Lumerical sessions read from any Lumerical log files that are created
+while a simulation is running and print their contents at the INFO level. By default, these
+log messages are not shown in stdout: but you can easily show them by following Python's
+documentation for logging. For example,
+
+```
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+```
