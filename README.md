@@ -15,7 +15,7 @@ See the `examples/` directory.
 
 ## Documentation
 
-This package allows for running simulations on 1 dimension nanophotonic cavities
+This package allows for running simulations on 1 dimensional nanophotonic cavities
 and their constituent unit cells. For these two objects, we expose two classes:
 `Cavity1D` and `UnitCell`, which derive from the more generic `SimulationObject`, and
 provide functionality to run simulations and store and visualize results.
