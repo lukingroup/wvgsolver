@@ -139,3 +139,15 @@ cavity = Cavity1D([cell], engine=engine)
 ```
 
 See `wvgsolver/engine/engines.py` for more information on LumericalEngine options.
+
+### Parsing to GDS files
+
+You can use the provided `DielectricSliceGDSParser` class to slice an object using a plane
+and convert the sliced geometry into a Phidl Device, which is basically a GDS cell:
+
+```
+parsed = DielectricSliceGDSParser(cavity)
+parsed.show()
+```
+
+See `wvgsolver/parse/object.py` for documentation on the parser.
