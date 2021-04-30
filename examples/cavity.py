@@ -5,11 +5,12 @@ out the results of each simulation as it completes.
 
 from wvgsolver import Cavity1D, UnitCell, Vec3
 from wvgsolver.geometry import BoxStructure, CylinderStructure, DielectricMaterial
+from wvgsolver.engine import LumericalEngine
 
 # Unit cells are cubes
-cell_size = 0.2e-6
+cell_size = 0.3e-6
 # Radius of the air holes in the cells
-hole_radius = 0.05e-6
+hole_radius = 0.075e-6
 # The length of the cavity beam
 beam_length = 10e-6
 # The target resonance frequency, in Hz
@@ -18,7 +19,7 @@ target_frequency = 400e12
 # Use level 4 automeshing accuracy, and show the Lumerical GUI while running simulations
 engine = LumericalEngine(mesh_accuracy=4, hide=False)
 
-cell_box = BoxStructure(Vec3(0), Vec3(cell_size), DielectricMaterial(2, order=2)),
+cell_box = BoxStructure(Vec3(0), Vec3(cell_size), DielectricMaterial(2, order=2))
 cell_hole = CylinderStructure(Vec3(0), cell_size, hole_radius, DielectricMaterial(1, order=1))
 
 mirror_cells = [UnitCell(structures=[ cell_box, cell_hole ], size=Vec3(cell_size), engine=engine)] * 4
@@ -38,13 +39,13 @@ r1 = cavity.simulate("resonance", target_freq=target_frequency)
 # Print the reults and plot the electric field profiles
 print("F: %f, Vmode: %f, Qwvg: %f, Qsc: %f" % (
   r1["freq"], r1["vmode"],
-  1/(1/res["qxmin"] + 1/res["qxmax"]),
-  1/(2/res["qymax"] + 1/res["qzmin"] + 1/res["qzmax"])
+  1/(1/r1["qxmin"] + 1/r1["qxmax"]),
+  1/(2/r1["qymax"] + 1/r1["qzmin"] + 1/r1["qzmax"])
 ))
 r1["xyprofile"].show()
 r1["yzprofile"].show()
 
-r2 = cavity.simulate("quasipotential", target_freq=target_frequency, min_gap=1e12)
+r2 = cavity.simulate("quasipotential", target_freq=target_frequency)
 
 # Plot the quasipotential
 r2.show()

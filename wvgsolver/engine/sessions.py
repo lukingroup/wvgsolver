@@ -166,16 +166,16 @@ class LumericalSession(Session):
     self.fdtd.save(self.save_path)
     self._load_fsp()
 
-    stop_logging = threading.Event()
-    threading.Thread(target=lumericalLogFile, args=(self.working_path, self.name, stop_logging)).start()
+#    stop_logging = threading.Event()
+#    threading.Thread(target=lumericalLogFile, args=(self.working_path, self.name, stop_logging)).start()
 
     try:
       self.fdtd.run()
     except Exception:
-      stop_logging.set()
+#      stop_logging.set()
       raise
 
-    stop_logging.set()
+#    stop_logging.set()
   
   def get_postrunres(self):
     if self.fsp_data or not self.temp_dir:
