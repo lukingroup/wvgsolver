@@ -4,3 +4,4 @@ trimesh
 triangle
 shapely
 phidl
+PyQt5

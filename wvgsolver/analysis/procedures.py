@@ -307,8 +307,10 @@ class Transmission(Analysis):
     sess.fdtd.putv("freq", self.target_freq)
     
     script = """
-    T = transmission("%s");
-    Tf = T(find(T, freq));
+    pm = "%s";
+    f = pinch(getdata(pm, "f"));
+    T = transmission(pm);
+    Tf = T(find(f, freq));
     """ % self.monitor_name
     sess.fdtd.eval(script)
 
