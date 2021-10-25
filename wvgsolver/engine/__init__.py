@@ -1,6 +1,6 @@
-from .engines import LumericalEngine
+from .engines import DummyEngine
 
-DEFAULT_ENGINE = LumericalEngine()
+DEFAULT_ENGINE = DummyEngine()
 
 # TODO: Check that this doesn't instantiate many copies of LumericalEngine
 def getDefaultEngine():

@@ -11,6 +11,7 @@ import shapely
 import logging
 import phidl
 from abc import ABC, abstractmethod
+phidl.set_quickplot_options(blocking=True)
 
 class ObjectGDSParser(Parser, ABC):
   """Base class for parsers that take a SimulationObject, slice it along a plane, and return 
@@ -73,7 +74,7 @@ class DielectricExtrusionFaceGDSParser(ObjectGDSParser):
         logging.warn("Skipping object %s because its material is not a dielectric" % s)
         continue
       polys.append({
-        "poly": gdspy.Polygon((np.array(s.verts) / self.scale) - origin[:2]),
+        "poly": gdspy.Polygon(((np.array(s.verts) + np.array([s.pos.x, s.pos.y])) / self.scale) - origin[:2]),
         "struct": s
       })
 

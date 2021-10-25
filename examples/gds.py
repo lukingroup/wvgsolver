@@ -1,9 +1,7 @@
 from wvgsolver import Cavity1D
 from wvgsolver.parse import DielectricExtrusionFaceGDSParser
-from wvgsolver.engine import LumericalEngine
 
-engine = LumericalEngine()
-cavity = Cavity1D(load_path="cavity.obj", engine=engine)
+cavity = Cavity1D(load_path="cavity.obj")
 
-parsed = DielectricExtrusionFaceGDSParser(cavity)
+parsed = DielectricExtrusionFaceGDSParser(cavity, invert=True)
 parsed.show()
