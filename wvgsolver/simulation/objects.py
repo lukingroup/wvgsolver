@@ -192,7 +192,7 @@ class UnitCell(SimulationObject):
 
 class Waveguide(SimulationObject):
   """This class represents a general waveguide structure"""
-  def __init__(structures=[], engine=None, load_path=None):
+  def __init__(self, structures=[], engine=None, load_path=None):
     """
     Parameters
     ----------

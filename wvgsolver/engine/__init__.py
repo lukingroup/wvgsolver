@@ -1,4 +1,4 @@
-from .engines import DummyEngine
+from .engines import DummyEngine, LumericalEngine
 
 DEFAULT_ENGINE = DummyEngine()
 
