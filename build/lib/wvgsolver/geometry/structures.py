@@ -119,7 +119,6 @@ class CylinderStructure(PolygonStructure):
     for i in range(self.ncirclepoints):
       t = (i / self.ncirclepoints) * 2 * np.pi
       verts.append([ self.radius * np.cos(t), self.radius2 * np.sin(t) ])
-    verts.append(verts[0])
     return verts
 
   def __repr__(self):
@@ -154,7 +153,7 @@ class TriStructure(PolygonStructure):
     verts = [
       [-size.x/2, size.x * np.tan(np.pi/2 - size.y) / 2],
       [size.x/2, size.x * np.tan(np.pi/2 - size.y) / 2],
-      [0, size.y/2]
+      [0, -1 * size.x * np.tan(np.pi/2 - size.y) / 2]
     ]
     super().__init__(pos, verts, size.z, material, rot_angles)
     self.size = size

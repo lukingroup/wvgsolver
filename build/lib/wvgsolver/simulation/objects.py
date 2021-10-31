@@ -190,7 +190,97 @@ class UnitCell(SimulationObject):
     
     return Bandstructure(output, (ks, freqs, self._size.x))
 
-class Cavity1D(SimulationObject):
+class Waveguide(SimulationObject):
+  """This class represents a general waveguide structure"""
+  def __init__(self, structures=[], engine=None, load_path=None):
+    """
+    Parameters
+    ----------
+    structures : list or Structure
+      Structures that comprise this waveguide
+    engine : Engine
+      Engine to run simulations with
+    load_path : str or None
+      If provided, loads a waveguide from the given file path
+    """
+   
+    self._structures = structures if isinstance(structures, list) else [structures] 
+    super().__init__(engine, load_path)
+
+    self._default_sim_type = "guidedness"
+
+  def _save_data(self):
+    return {
+      "structures": self._structures
+    }
+
+  def _load_data(self, data):
+    self._structures = data["structures"]
+
+  def get_structures(self):
+    return self._structures
+  
+  def _simulate_guidedness(self, sess, target_freq=400e12, sim_size=Vec3(3, 4, 4), source_pos=-1, freq_span=0, sim_time=200e-15, source_size=3, TEonly=True):
+    """Simulates the guidedness of the cavity by using a mode source in the positive x direction and calculating 
+    the transmission and reflection coefficients along the x axis. The sum of these coefficients indicates the 
+    fraction of light from the mode source that remains guided along the x axis
+
+    Parameters
+    ----------
+    sess : Session
+      Used internally to perform the actual simulation
+    target_freq : float
+      target frequency of the cavity simulation
+    sim_size : Vec3 or float
+      The size of the simulation region in units of the size of the cavity. A single float value 
+      corresponds to a vector whose all three elements are equal to that value.
+    source_pos : float
+      The x position of the mode source, in units of the x dimension of the cavity
+    freq_span : float
+      The frequency span of the mode source
+    sim_time : float
+      The simulation time
+    source_size : float or Vec3
+      The size of the y and z dimensions of the mode source, in units of the size of the cavity in those dimensions
+    TEonly : bool
+      Whether or not to enforce TE only modes by applying an antisymmetric boundary condition along the y-axis.
+
+    Returns
+    -------
+    transmission: dict
+      Of the form { "x": float, "y": float, "z": float }.
+      The sum of the transmission and reflection coefficients across the whole simulation time along the 3 axes
+    """
+    size = self._getsize()
+    bbox = BBox(Vec3(0), size * sim_size)
+
+    sess.set_sim_region(size=bbox.size, boundaries={
+      "ymin": "antisymmetric" if TEonly else "pml"
+    })
+    sess.set_sources(ModeSource(frange=(target_freq - freq_span * 0.5, target_freq + freq_span * 0.5),
+      pos=Vec3(source_pos * size.x, 0, 0), size=(size * source_size)))
+    sess.set_sim_time(sim_time)
+
+    analysis = {
+      "pxmin": Transmission(bbox, AXIS_X, -1, target_freq, freq_span),
+      "pxmax": Transmission(bbox, AXIS_X, 1, target_freq, freq_span),
+      "pymax": Transmission(bbox, AXIS_Y, 1, target_freq, freq_span),
+      "pzmin": Transmission(bbox, AXIS_Z, -1, target_freq, freq_span),
+      "pzmax": Transmission(bbox, AXIS_Z, 1, target_freq, freq_span),
+    }
+    if not TEonly:
+      analysis["pymin"] = Transmission(bbox, AXIS_Y, -1, target_freq, freq_span),
+
+    res = sess.run(analysis)
+
+    return {
+      "x": res["pxmax"] - res["pxmin"],
+      "y": 2*res["pymax"] if TEonly else res["pymax"] - res["pymin"],
+      "z": res["pzmax"] - res["pzmin"]
+    }
+
+  
+class Cavity1D(Waveguide):
   """This class represents a 1D cavity, which consists of a series of unit cells stacked together, plus 
   additional structures (such as a beam). All simulations on this cavity are performed by stacking the list of
   unit cells in the x dimension, centering this stack around the origin, and adding any additional structures.
@@ -222,13 +312,12 @@ class Cavity1D(SimulationObject):
       data, including the list of unit cells, from that file
     """
     
-    self._additional_structures = structures if isinstance(structures, list) else [structures]
     self._unit_cells = unit_cells if isinstance(unit_cells, list) else [unit_cells]
     self._center_cell = center_cell
     self._center_shift = center_shift
     self._size_override = size
 
-    super().__init__(engine, load_path)
+    super().__init__(structures, engine, load_path)
 
     self._default_sim_type = "resonance"
     self._no_sess_sims = ["quasipotential"]
@@ -237,7 +326,7 @@ class Cavity1D(SimulationObject):
     return self._unit_cells
 
   def _load_data(self, data):
-    self._additional_structures = data["additional_structures"]
+    self._structures = data["additional_structures"]
     unit_cells = []
     for s in data["unit_cells"]:
       c = UnitCell(engine=self.engine)
@@ -247,13 +336,13 @@ class Cavity1D(SimulationObject):
 
   def _save_data(self):
     return {
-      "additional_structures": self._additional_structures,
+      "additional_structures": self._structures,
       "unit_cells": [ c.save_data() for c in self._unit_cells ]
     }
 
   def get_structures(self, sim_type=None):
     if len(self._unit_cells) < 1:
-      return [ s.copy() for s in self._additional_structures ]
+      return [ s.copy() for s in self._structures ]
     
     center_cell = self._center_cell
     if center_cell is None:
@@ -284,7 +373,7 @@ class Cavity1D(SimulationObject):
     for s in structs:
       s.pos.x -= shift - center_shift
 
-    for s in self._additional_structures:
+    for s in self._structures:
       copy_s = s.copy()
       structs.append(copy_s)
 
@@ -330,54 +419,6 @@ class Cavity1D(SimulationObject):
       output.append(min(gap[1] - target_freq, target_freq - gap[0]))
     
     return Quasipotential(output)
-
-  def _simulate_guidedness(self, sess, target_freq=400e12, sim_size=Vec3(3, 4, 4), source_pos=-1, freq_span=0, sim_time=200e-15, source_size=3, TEonly=True):
-    """Simulates the guidedness of the cavity by using a mode source in the positive x direction and calculating 
-    the transmission and reflection coefficients along the x axis. The sum of these coefficients indicates the 
-    fraction of light from the mode source that remains guided along the x axis
-
-    Parameters
-    ----------
-    sess : Session
-      Used internally to perform the actual simulation
-    target_freq : float
-      target frequency of the cavity simulation
-    sim_size : Vec3 or float
-      The size of the simulation region in units of the size of the cavity. A single float value 
-      corresponds to a vector whose all three elements are equal to that value.
-    source_pos : float
-      The x position of the mode source, in units of the x dimension of the cavity
-    freq_span : float
-      The frequency span of the mode source
-    sim_time : float
-      The simulation time
-    source_size : float or Vec3
-      The size of the y and z dimensions of the mode source, in units of the size of the cavity in those dimensions
-    TEonly : bool
-      Whether or not to enforce TE only modes by applying an antisymmetric boundary condition along the y-axis.
-
-    Returns
-    -------
-    float
-      The sum of the transmission and reflection coefficients across the whole simulation time along the x axis
-    """
-    size = self._getsize()
-    bbox = BBox(Vec3(0), size * sim_size)
-
-    sess.set_sim_region(size=bbox.size, boundaries={
-      "ymin": "antisymmetric" if TEonly else "pml"
-    })
-    sess.set_sources(ModeSource(frange=(target_freq - freq_span * 0.5, target_freq + freq_span * 0.5),
-      pos=Vec3(source_pos * size.x, 0, 0), size=(size * source_size)))
-    sess.set_sim_time(sim_time)
-
-    analysis = {
-      "pxmin": Transmission(bbox, AXIS_X, -1, target_freq, freq_span),
-      "pxmax": Transmission(bbox, AXIS_X, 1, target_freq, freq_span),
-    }
-    res = sess.run(analysis)
-
-    return res["pxmax"] - res["pxmin"]
 
   def _simulate_resonance(self, sess, target_freq=400e12, source_pulselength=60e-15, analyze_fspan=3e14, \
       analyze_time=590e-15, TEonly=True, sim_size=Vec3(2, 4, 4), energy_downsample=2):

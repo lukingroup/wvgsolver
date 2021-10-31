@@ -1,1 +1,1 @@
-from .object import DielectricSliceGDSParser
+from .object import DielectricConvexSliceGDSParser, DielectricExtrusionFaceGDSParser
