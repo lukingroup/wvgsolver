@@ -1,0 +1,6 @@
+C_LIGHT = 299792458 # m/s
+F_EPSILON = 1e10
+
+AXIS_X = 1
+AXIS_Y = 2
+AXIS_Z = 3
