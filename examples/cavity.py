@@ -52,5 +52,5 @@ r2.show()
 
 r3 = cavity.simulate("guidedness", target_freq=target_frequency)
 
-print("Guidedness: %f" % r3)
+print("Guidedness: %s" % r3)
 

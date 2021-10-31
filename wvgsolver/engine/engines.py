@@ -8,6 +8,14 @@ import tempfile
 import subprocess
 import time
 
+class DummyEngine(Engine):
+  """An engine that does nothing"""
+  def __init__(self):
+    self.name = "dummy"
+
+  def new_session(self):
+    raise NotImplementedError("Dummy engine doesn't support creating sessions. Please use LumericalEngine or other")
+
 class LumericalEngine(Engine):
   """Engine for running simulations in Lumerical"""
   def __init__(self, lumerical_path=None, working_path=None, hide=True, save_fsp=True, mesh_accuracy=5, pml_layers=8):

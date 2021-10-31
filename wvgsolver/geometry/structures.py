@@ -119,7 +119,6 @@ class CylinderStructure(PolygonStructure):
     for i in range(self.ncirclepoints):
       t = (i / self.ncirclepoints) * 2 * np.pi
       verts.append([ self.radius * np.cos(t), self.radius2 * np.sin(t) ])
-    verts.append(verts[0])
     return verts
 
   def __repr__(self):
