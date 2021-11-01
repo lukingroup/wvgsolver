@@ -13,10 +13,9 @@ import phidl
 from abc import ABC, abstractmethod
 phidl.set_quickplot_options(blocking=True)
 
-class ObjectGDSParser(Parser, ABC):
-  """Base class for parsers that take a SimulationObject, slice it along a plane, and return 
-  the resulting 2D geometry as a Phidl GDS device"""
-  def __init__(self, data, scale=1e-6, origin=Vec3(0), axis=AXIS_Z, name="main", invert=False):
+class ObjectParser(Parser, ABC):
+  """Parses a SimlationObject for some kind of visualization task"""
+  def __init__(self, data, scale=1e-6, origin=Vec3(0)):
     """
     Parameters
     ----------
@@ -27,6 +26,25 @@ class ObjectGDSParser(Parser, ABC):
       corresponds to geometry of length 1 micron
     origin : Vec3
       The origin of the slicing plane
+    """
+    self.scale = scale
+    self.origin = origin.tolist()
+
+    super().__init__(data)
+
+class ObjectGDSParser(ObjectParser, ABC):
+  """Base class for parsers that take a SimulationObject, slice it along a plane, and return 
+  the resulting 2D geometry as a Phidl GDS device"""
+  def __init__(self, data, scale=1e-6, origin=Vec3(0), axis=AXIS_Z, name="main", invert=False):
+    """
+    Parameters
+    ----------
+    data : SimulationObject
+      See documentation of ObjectParser
+    scale : float
+      See documentation of ObjectParser
+    origin : Vec3
+      See documentation of ObjectParser
     axis : {AXIS_X, AXIS_Y, AXIS_Z}
       The axis of the normal of the slicing plane
     name : str
@@ -34,14 +52,12 @@ class ObjectGDSParser(Parser, ABC):
     invert : bool
       Whether or not to invert the geometry at the end
     """
-    self.scale = scale
     self.invert = invert
     self.axis = axis
     self.device = phidl.Device(name=name)
-    self.origin = origin.tolist()
     self.polygonset = None
     
-    super().__init__(data)
+    super().__init__(data, scale, origin)
 
   def show(self):
     """Show the geometry in a plot"""
@@ -145,3 +161,39 @@ class DielectricConvexSliceGDSParser(ObjectGDSParser):
       if totalpoly:
         self.polygonset = totalpoly
         self.device.add_polygon(totalpoly)
+
+class ObjectParser3D(ObjectParser):
+  """
+  Takes a SimulationObject and renders it in 3D, either to a window or to an image.
+  To avoid Z-fighting, this scales structures with lower order a tiny bit larger than
+  structures with a higher order.
+  """
+  def __init__(self, data, scale=1e-6, origin=Vec3(0)):
+    """
+    Parameters
+    ----------
+    data : SimulationObject
+      See documentation of ObjectParser
+    scale : float
+      See documentation of ObjectParser
+    origin : Vec3
+      See documentation of ObjectParser
+    """
+
+    self.scene = trimesh.scene.Scene()
+    super().__init__(data, scale, origin)
+
+  def _parse(self):
+    structs = self.data.get_structures()
+
+    for s in structs:
+      mesh = s.get_mesh(self.scale * min(1.01, 1 + 0.001 * s.material.order))
+      self.scene.add_geometry(mesh)
+
+  def show(self):
+    """Show the object in a 3D visualizer"""
+    self.scene.show()
+
+  def save(self, fpath):
+    # TODO: implement
+    pass

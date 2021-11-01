@@ -40,8 +40,18 @@ class PolygonStructure(Structure):
         trimesh.transformations.translation_matrix([0, 0, -self.height / (2 * scale)])
       )
     )
-    return trimesh.primitives.Extrusion(polygon=shapely.geometry.Polygon(np.array(self.verts) / scale), 
-      height=(self.height / scale), transform=transform).to_mesh()
+    mesh = trimesh.primitives.Extrusion(
+      polygon=shapely.geometry.Polygon(np.array(self.verts) / scale), 
+      height=(self.height / scale),
+      transform=transform,
+    )
+    mesh.visual = trimesh.visual.ColorVisuals(
+      face_colors=np.tile(
+        np.minimum(255, np.floor(256*self.material.get_color_rgba())).astype(np.uint8),
+        (len(mesh.faces), 1)
+      )
+    )
+    return mesh
 
   def __repr__(self): 
     return "PolygonStructure(%d,%s,%.6e,%s):%s" % (len(self.verts), self.rot_angles, self.height, self.material, super().__repr__())

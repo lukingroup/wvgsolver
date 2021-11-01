@@ -19,15 +19,15 @@ target_frequency = 400e12
 # Use level 4 automeshing accuracy, and show the Lumerical GUI while running simulations
 engine = LumericalEngine(mesh_accuracy=4, hide=False)
 
-cell_box = BoxStructure(Vec3(0), Vec3(cell_size), DielectricMaterial(2, order=2))
-cell_hole = CylinderStructure(Vec3(0), cell_size, hole_radius, DielectricMaterial(1, order=1))
+cell_box = BoxStructure(Vec3(0), Vec3(cell_size), DielectricMaterial(2, order=2, color="red"))
+cell_hole = CylinderStructure(Vec3(0), cell_size, hole_radius, DielectricMaterial(1, order=1, color="blue"))
 
 mirror_cells = [UnitCell(structures=[ cell_box, cell_hole ], size=Vec3(cell_size), engine=engine)] * 4
 cavity_cells = [UnitCell(structures=[ cell_box ], size=Vec3(cell_size), engine=engine)] * 3
 
 cavity = Cavity1D(
   unit_cells=mirror_cells + cavity_cells + mirror_cells,
-  structures=[ BoxStructure(Vec3(0), Vec3(beam_length, cell_size, cell_size), DielectricMaterial(2, order=2)) ],
+  structures=[ BoxStructure(Vec3(0), Vec3(beam_length, cell_size, cell_size), DielectricMaterial(2, order=2, color="red")) ],
   engine=engine
 )
 

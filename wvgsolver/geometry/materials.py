@@ -1,6 +1,4 @@
 from .base import Material
-from matplotlib.colors import to_rgba
-import numpy as np
 
 class DielectricMaterial(Material):
   """Represents a Dielectric material for a structure"""
@@ -32,4 +30,4 @@ class DielectricMaterial(Material):
     sess.fdtd.setmaterial(self.name, "Refractive Index", self.nindex)
     sess.fdtd.setmaterial(self.name, "Mesh Order", self.order)
 
-    sess.fdtd.setmaterial(self.name, "color", np.array(to_rgba(self.color)))
+    sess.fdtd.setmaterial(self.name, "color", self.get_color_rgba())
