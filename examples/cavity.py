@@ -17,7 +17,7 @@ beam_length = 10e-6
 target_frequency = 400e12
 
 # Use level 4 automeshing accuracy, and show the Lumerical GUI while running simulations
-engine = LumericalEngine(mesh_accuracy=4, hide=False)
+engine = LumericalEngine(mesh_accuracy=1, hide=False)
 
 cell_box = BoxStructure(Vec3(0), Vec3(cell_size), DielectricMaterial(2, order=2, color="red"))
 cell_hole = CylinderStructure(Vec3(0), cell_size, hole_radius, DielectricMaterial(1, order=1, color="blue"))
@@ -34,6 +34,7 @@ cavity = Cavity1D(
 # By setting the save path here, the cavity will save itself after each simulation to this file
 cavity.save("cavity.obj")
 
+r3 = cavity.simulate("guidedness", target_freq=target_frequency)
 r1 = cavity.simulate("resonance", target_freq=target_frequency)
 
 # Print the reults and plot the electric field profiles
@@ -50,7 +51,6 @@ r2 = cavity.simulate("quasipotential", target_freq=target_frequency)
 # Plot the quasipotential
 r2.show()
 
-r3 = cavity.simulate("guidedness", target_freq=target_frequency)
 
 print("Guidedness: %s" % r3)
 

@@ -220,7 +220,7 @@ class Waveguide(SimulationObject):
   def get_structures(self):
     return self._structures
   
-  def _simulate_guidedness(self, sess, target_freq=400e12, sim_size=Vec3(3, 4, 4), source_pos=-1, freq_span=0, sim_time=200e-15, source_size=3, TEonly=True):
+  def _simulate_guidedness(self, sess, target_freq=400e12, bboxes={}, sim_size=Vec3(3, 4, 4), source_pos=-1, freq_span=0, sim_time=200e-15, source_size=3, TEonly=True):
     """Simulates the guidedness of the cavity by using a mode source in the positive x direction and calculating 
     the transmission and reflection coefficients along the x axis. The sum of these coefficients indicates the 
     fraction of light from the mode source that remains guided along the x axis
@@ -229,6 +229,11 @@ class Waveguide(SimulationObject):
     ----------
     sess : Session
       Used internally to perform the actual simulation
+    bboxes : BBox or dict
+      Specifies the bounding box(es) whose edges serve as the analysis regions for transmission calculations. Specifying
+      a single BBox here will result in all 6 transmission monitors (2 for each axis) along the edges of that box. 
+      Alternatively, you can specificy the boxes for specific axes by giving a dictionary with keys "x", "y", "z"
+      and values being BBoxes. The default in any case is the simulation region.
     target_freq : float
       target frequency of the cavity simulation
     sim_size : Vec3 or float
@@ -252,7 +257,18 @@ class Waveguide(SimulationObject):
       The sum of the transmission and reflection coefficients across the whole simulation time along the 3 axes
     """
     size = self._getsize()
-    bbox = BBox(Vec3(0), size * sim_size)
+
+    tbboxes = {
+      "x": BBox(Vec3(0), size * sim_size),
+      "y": BBox(Vec3(0), size * sim_size),
+      "z": BBox(Vec3(0), size * sim_size)
+    }
+    if isinstance(bboxes, BBox):
+      for a in tbboxes.keys():
+        tbboxes[a] = bboxes
+    elif isinstance(bboxes, dict):
+      for a, b in enumerate(bboxes):
+        tbboxes[a] = b
 
     sess.set_sim_region(size=bbox.size, boundaries={
       "ymin": "antisymmetric" if TEonly else "pml"
@@ -262,14 +278,14 @@ class Waveguide(SimulationObject):
     sess.set_sim_time(sim_time)
 
     analysis = {
-      "pxmin": Transmission(bbox, AXIS_X, -1, target_freq, freq_span),
-      "pxmax": Transmission(bbox, AXIS_X, 1, target_freq, freq_span),
-      "pymax": Transmission(bbox, AXIS_Y, 1, target_freq, freq_span),
-      "pzmin": Transmission(bbox, AXIS_Z, -1, target_freq, freq_span),
-      "pzmax": Transmission(bbox, AXIS_Z, 1, target_freq, freq_span),
+      "pxmin": Transmission(bboxes["x"], AXIS_X, -1, target_freq, freq_span),
+      "pxmax": Transmission(bboxes["x"], AXIS_X, 1, target_freq, freq_span),
+      "pymax": Transmission(bboxes["y"], AXIS_Y, 1, target_freq, freq_span),
+      "pzmin": Transmission(bboxes["z"], AXIS_Z, -1, target_freq, freq_span),
+      "pzmax": Transmission(bboxes["z"], AXIS_Z, 1, target_freq, freq_span),
     }
     if not TEonly:
-      analysis["pymin"] = Transmission(bbox, AXIS_Y, -1, target_freq, freq_span),
+      analysis["pymin"] = Transmission(bboxes["y"], AXIS_Y, -1, target_freq, freq_span),
 
     res = sess.run(analysis)
 

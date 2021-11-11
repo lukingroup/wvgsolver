@@ -46,8 +46,8 @@ class LumericalSession(Session):
     self.fdtd = None
     self.sim_region = None
 
-    self.structures = "structures"
-    self.sources = "sources"
+    self.structures_group = "structures"
+    self.sources_group = "sources"
     self.boundary_keys_map = {
       "xmin": "x min bc",
       "xmax": "x max bc",
@@ -80,12 +80,25 @@ class LumericalSession(Session):
     self.fsp_data = None
 
     self.fdtd = self.engine.lumapi.FDTD(hide=self.engine.hide)
-    self.fdtd.addstructuregroup(name=self.structures)
-    self.fdtd.addgroup(name=self.sources)
+    self.fdtd.addstructuregroup(name=self.structures_group)
+    self.fdtd.addgroup(name=self.sources_group)
+    self.fdtd.addgroup(name=self.mesh_regions_group)
     self.sim_region = self.fdtd.addfdtd(mesh_accuracy=self.engine.mesh_accuracy, use_early_shutoff=False)
     self.sim_region.pml_profile = 4
     self.sim_region.pml_min_layers = self.engine.pml_layers
     self.sim_region.pml_max_layers = self.engine.pml_layers
+
+    self._add_mesh_regions()
+
+  def _add_mesh_regions(self):
+    self.fdtd.switchtolayout()
+    self.fdtd.groupscope(self.mesh_regions_group)
+    self.fdtd.deleteall()
+
+    for r in self.engine.mesh_regions:
+      r.add(self)
+    
+    self.fdtd.groupscope("::model")
 
   def close(self):
     if self.fdtd is not None:
@@ -96,7 +109,7 @@ class LumericalSession(Session):
   
   def _set_structures(self, structs=[]):
     self.fdtd.switchtolayout()
-    self.fdtd.groupscope(self.structures)
+    self.fdtd.groupscope(self.structures_group)
     self.fdtd.deleteall()
 
     for s in structs:
@@ -106,7 +119,7 @@ class LumericalSession(Session):
   
   def _set_sources(self, sources=[]):
     self.fdtd.switchtolayout()
-    self.fdtd.groupscope(self.sources)
+    self.fdtd.groupscope(self.sources_group)
     self.fdtd.deleteall()
 
     for s in sources:
