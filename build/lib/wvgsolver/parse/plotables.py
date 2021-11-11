@@ -70,7 +70,7 @@ class EField(Parser):
       title = "Electric field " + (xlabel + ylabel).upper() + " density profile"
     
     Ex, Ey, Ez, x, y, index = self.data
-    E = Ex + Ey + Ez
+    E = np.sqrt(Ex**2 + Ey**2 + Ez**2)
     fig, axs = plt.subplots(2, 2)
     for cname, data, ax in [
         ("Ex", Ex, axs[0,0]), ("Ey", Ey, axs[0,1]), ("Ez", Ez, axs[1,0]), ("E", E, axs[1,1])
@@ -90,6 +90,20 @@ class EField(Parser):
   
   def __repr__(self):
     return "EField(%s, %s)" % (self.meta[0], self.meta[1])
+
+  def max_loc(self):
+    Ex, Ey, Ez, x, y, index = self.data
+    E = np.sqrt(Ex**2 + Ey**2 + Ez**2)
+    print(np.shape(Ex))
+    print(np.shape(Ey))
+    print(np.shape(Ez))
+    print(np.shape(E))
+    print(np.shape(x))
+    print(np.shape(y))
+    max_index = np.unravel_index(np.argmax(E),E.shape)
+    print(max_index)
+    return (x[max_index[0]],y[max_index[1]])
+    
 
   def save(self, fpath):
     # TODO: Implement

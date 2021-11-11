@@ -5,3 +5,4 @@ MANIFEST
 *.swp
 *.pyc
 *.obj
+examples/v0p4p2/**
