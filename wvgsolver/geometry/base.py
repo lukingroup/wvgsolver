@@ -23,21 +23,60 @@ class Geometry(EngineSpecific):
     self.callImplementation("add", session)
 
 class Structure(Geometry, ABC):
-  def __init__(self, pos, material):
-    super().__init__()
+  def __init__(self, pos, material, rot_angles=(0, 0, 0)):
+    """
+    Parameters
+    ----------
+    pos : Vec3
+      The position of the centroid of the structure
+    material : Material
+      The material that the structure is made of
+    rot_angles : tuple
+      Euler angles in radians, given in extrinsic (static) z-y-x order, with which to rotate
+      the 3D structure.  For example, a value of (pi/2, pi/2, 0) means rotate around the z axis
+      by 90 degrees, then around the y axis by 90 degrees.
+    """
     self.pos = pos
     self.material = material
+    self.rot_angles = rot_angles
+    
+    super().__init__()
 
-  @abstractmethod
   def get_mesh(self, scale):
     """
-    Gets this polygon's 3D mesh.
+    Gets this structure's 3D mesh.
 
     Parameters
     ----------
     scale : number
       What size to treat as unity in the scale of the structure. For example, a value of 1e-6
       corresponds to a 1 micron scaling.
+
+    Returns
+    -------
+    mesh : trimesh.Trimesh
+    """
+    transform = np.dot(
+      trimesh.transformations.translation_matrix((self.pos / scale).tolist()),
+      np.dot(
+        trimesh.transformations.euler_matrix(*self.rot_angles, axes="szyx"),
+      )
+    )
+
+    mesh = self._get_origin_mesh(scale)
+    mesh.apply_transform(transform)
+    mesh.visual = trimesh.visual.ColorVisuals(
+      face_colors=np.tile(
+        np.minimum(255, np.floor(256*self.material.get_color_rgba())).astype(np.uint8),
+        (len(mesh.faces), 1)
+      )
+    )
+    return mesh
+
+  @abstractmethod
+  def _get_untransformed_mesh(self, scale):
+    """
+    Returns the mesh of this object, centered at the origin, and not rotated
 
     Returns
     -------

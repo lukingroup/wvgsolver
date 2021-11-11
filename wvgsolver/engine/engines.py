@@ -18,7 +18,7 @@ class DummyEngine(Engine):
 
 class LumericalEngine(Engine):
   """Engine for running simulations in Lumerical"""
-  def __init__(self, lumerical_path=None, working_path=None, hide=True, save_fsp=True, mesh_accuracy=5, pml_layers=8):
+  def __init__(self, lumerical_path=None, working_path=None, hide=True, save_fsp=True, mesh_accuracy=5, mesh_regions=[], pml_layers=8):
     """
     Parameters
     ----------
@@ -36,6 +36,8 @@ class LumericalEngine(Engine):
       list of simulation results in any SimulationObject that runs simulations using this engine. 
     mesh_accuracy : int
       The autmoeshing accuracy, from 1 to 8. Higher means a finer mesh.
+    mesh_regions : LumericalMeshRegion or list
+      The set of custom mesh regions you'd like for this simulation.
     pml_layers : int
       The number of PML layers to use in PML boundary conditions
     """
@@ -44,6 +46,7 @@ class LumericalEngine(Engine):
     self.lumerical_path = lumerical_path
     self.hide = hide
     self.mesh_accuracy = mesh_accuracy
+    self.mesh_regions = mesh_regions is isinstance(mesh_regions, list) else [mesh_regions]
     self.pml_layers = pml_layers
     self.save_fsp = save_fsp
     self.version = "user specified" if lumerical_path is not None else "unknown"
