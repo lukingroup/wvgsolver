@@ -74,7 +74,7 @@ class Structure(Geometry, ABC):
     return mesh
 
   @abstractmethod
-  def _get_untransformed_mesh(self, scale):
+  def _get_origin_mesh(self, scale):
     """
     Returns the mesh of this object, centered at the origin, and not rotated
 

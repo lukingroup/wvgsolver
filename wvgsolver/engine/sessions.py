@@ -48,6 +48,7 @@ class LumericalSession(Session):
 
     self.structures_group = "structures"
     self.sources_group = "sources"
+    self.mesh_regions_group = "mesh regions"
     self.boundary_keys_map = {
       "xmin": "x min bc",
       "xmax": "x max bc",
@@ -88,14 +89,12 @@ class LumericalSession(Session):
     self.sim_region.pml_min_layers = self.engine.pml_layers
     self.sim_region.pml_max_layers = self.engine.pml_layers
 
-    self._add_mesh_regions()
-
-  def _add_mesh_regions(self):
+  def _set_mesh_regions(self, regions=[]):
     self.fdtd.switchtolayout()
     self.fdtd.groupscope(self.mesh_regions_group)
     self.fdtd.deleteall()
 
-    for r in self.engine.mesh_regions:
+    for r in regions:
       r.add(self)
     
     self.fdtd.groupscope("::model")

@@ -4,9 +4,7 @@ import shapely
 import trimesh
 
 class PolygonStructure(Structure):
-  """Represents a 2D polygon extruded along the z axis into a 3D structure, then rotated and placed at a particular location.
-  This allows for arbitrarily positioned extruded polygons, and is the most generic Structure as of right now
-  """
+  """Represents a 2D polygon extruded along the z axis into a 3D structure, then rotated and placed at a particular location."""
   def __init__(self, pos, verts, height, material, rot_angles=(0, 0, 0)):
     """
     Parameters
@@ -27,31 +25,17 @@ class PolygonStructure(Structure):
       When rotating, the origin in the x-y plane is taken to be the origin used when defining the vertices
       of the face, and the origin in the z dimension is halfway up the extrusion height of the structure.
     """
-    super().__init__(pos, material)
     self.verts = verts
-    self.rot_angles = rot_angles
     self.height = height
+    
+    super().__init__(pos, material, rot_angles)
 
-  def get_mesh(self, scale):
-    transform = np.dot(
-      trimesh.transformations.translation_matrix((self.pos / scale).tolist()),
-      np.dot(
-        trimesh.transformations.euler_matrix(*self.rot_angles, axes="szyx"),
-        trimesh.transformations.translation_matrix([0, 0, -self.height / (2 * scale)])
-      )
-    )
-    mesh = trimesh.primitives.Extrusion(
+  def _get_origin_mesh(self, scale):
+    return trimesh.creation.extrude_polygon(
       polygon=shapely.geometry.Polygon(np.array(self.verts) / scale), 
       height=(self.height / scale),
-      transform=transform,
+      transform=trimesh.transformations.translation_matrix([0, 0, -self.height / (2 * scale)])
     )
-    mesh.visual = trimesh.visual.ColorVisuals(
-      face_colors=np.tile(
-        np.minimum(255, np.floor(256*self.material.get_color_rgba())).astype(np.uint8),
-        (len(mesh.faces), 1)
-      )
-    )
-    return mesh
 
   def __repr__(self): 
     return "PolygonStructure(%d,%s,%.6e,%s):%s" % (len(self.verts), self.rot_angles, self.height, self.material, super().__repr__())
@@ -64,6 +48,34 @@ class PolygonStructure(Structure):
     poly.rotation_2 = self.rot_angles[1] * 180 / np.pi
     poly.rotation_3 = self.rot_angles[2] * 180 / np.pi
     poly.vertices = np.array(self.verts)
+
+class ConeStructure(Structure):
+  """Represents a cone with its axis along z"""
+  def __init__(self, pos, radius, height, material, rot_angles=(0, 0, 0)):
+    """
+    Parameters
+    ----------
+    pos : Vec3
+      The position of the centroid of the structure, halfway up the extrusion 
+    verts : array-like
+      A n x 2 array of 2D points, corresponding to the x-y coordinates of the 2D polygonal face's
+      vertices
+    height : float
+      The length of the extrusion of the polygonal face along the z-axis
+    material : Material
+      The material that the structure is made of
+    rot_angles : tuple
+      Euler angles in radians, given in extrinsic (static) z-y-x order, with which to rotate
+      the 3D structure.  For example, a value of (pi/2, pi/2, 0) means rotate around the z axis
+      by 90 degrees, then around the y axis by 90 degrees.
+      When rotating, the origin in the x-y plane is taken to be the origin used when defining the vertices
+      of the face, and the origin in the z dimension is halfway up the extrusion height of the structure.
+    """
+    self.height = height
+    self.radius = radius
+    
+    super().__init__(pos, material, rot_angles)
+
 
 class BoxStructure(PolygonStructure):
   """Represents a 3D box structure by building a Polygon structure from a 2D polygon defined by the 

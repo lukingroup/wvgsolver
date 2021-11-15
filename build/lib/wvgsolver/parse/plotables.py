@@ -70,7 +70,7 @@ class EField(Parser):
       title = "Electric field " + (xlabel + ylabel).upper() + " density profile"
     
     Ex, Ey, Ez, x, y, index = self.data
-    E = np.sqrt(Ex**2 + Ey**2 + Ez**2)
+    E = Ex+ Ey + Ez
     fig, axs = plt.subplots(2, 2)
     for cname, data, ax in [
         ("Ex", Ex, axs[0,0]), ("Ey", Ey, axs[0,1]), ("Ez", Ez, axs[1,0]), ("E", E, axs[1,1])
@@ -93,7 +93,7 @@ class EField(Parser):
 
   def max_loc(self):
     Ex, Ey, Ez, x, y, index = self.data
-    E = np.sqrt(Ex**2 + Ey**2 + Ez**2)
+    E = Ex + Ey + Ez
     print(np.shape(Ex))
     print(np.shape(Ey))
     print(np.shape(Ez))

@@ -209,7 +209,7 @@ class SimulationObject(ABC):
 
     return res
 
-  def simulate(self, t=None, save=True, **kwargs):
+  def simulate(self, t=None, save=True, mesh_regions=[], **kwargs):
     """This is the main function that is called to run a simulation.
     Note: The values of the additional keyword arguments here can only be 
     Python primitives or tuples/lists/dicts of primitives, or Vec3's
@@ -243,6 +243,7 @@ class SimulationObject(ABC):
       if t not in self._no_sess_sims:
         session = self.engine.new_session()
         session.set_structures(self.get_structures(t))
+        session.set_mesh_regions(mesh_regions)
 
         args.append(session)
 

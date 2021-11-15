@@ -34,7 +34,17 @@ class Session(ABC):
       return self._set_structures(structs)
     
     return self._set_structures([structs])
+
+  def set_mesh_regions(self, regions=[]):
+    if isinstance(regions, list):
+      return self._set_mesh_regions(regions)
+    
+    return self._set_mesh_regions([regions])
   
+  @abstractmethod
+  def _set_mesh_regions(self, structs=[]):
+    pass
+
   @abstractmethod
   def _set_structures(self, structs=[]):
     pass
