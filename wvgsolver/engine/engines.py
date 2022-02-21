@@ -1,5 +1,5 @@
 from .base import Engine
-from .sessions import LumericalSession
+from .sessions import LumericalSession, GSvitSession
 import importlib.util
 import logging
 import sys
@@ -15,6 +15,21 @@ class DummyEngine(Engine):
 
   def new_session(self):
     raise NotImplementedError("Dummy engine doesn't support creating sessions. Please use LumericalEngine or other")
+
+class GSvitEngine(Engine):
+  """Engine for running simuations in GSvit"""
+  def __init__(self):
+    """
+    Parameters
+    ----------
+    """
+    self.name = "gsvit"
+
+  def __repr__(self):
+    return "GSvitEngine()"
+
+  def new_session(self):
+    return GSvitSession(self)
 
 class LumericalEngine(Engine):
   """Engine for running simulations in Lumerical"""

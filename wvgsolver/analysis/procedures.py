@@ -262,13 +262,14 @@ class SideWavePower(Analysis):
     return self.side * 0.5 * (np.max(data) + np.min(data))
 
 class Transmission(Analysis):
-  def __init__(self, bbox, axis, side, target_freq, freq_span, freq_points=20):
+  def __init__(self, bbox, axis, side, target_freq, freq_span, freq_points=20, return_spectrum=False):
     self.bbox = bbox
     self.axis = axis
     self.side = side
     self.target_freq = target_freq
     self.freq_span = freq_span
     self.freq_points = freq_points
+    self.return_spectrum = return_spectrum
     self.monitor_name = randstring()
 
   def _setup_lumerical(self, sess):
@@ -314,5 +315,11 @@ class Transmission(Analysis):
     """ % self.monitor_name
     sess.fdtd.eval(script)
 
-    return sess.fdtd.getv("Tf")
+    if self.return_spectrum:
+      return {
+        "f": sess.fdtd.getv("f"),
+        "T": sess.fdtd.getv("T")
+      }
+    else:
+      return sess.fdtd.getv("Tf")
 

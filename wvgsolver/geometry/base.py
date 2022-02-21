@@ -3,6 +3,7 @@ from ..utils.misc import randstring
 from abc import ABC, abstractmethod
 from ..utils.constants import C_LIGHT
 from matplotlib.colors import to_rgba
+import trimesh
 import numpy as np
 import copy
 
@@ -58,9 +59,7 @@ class Structure(Geometry, ABC):
     """
     transform = np.dot(
       trimesh.transformations.translation_matrix((self.pos / scale).tolist()),
-      np.dot(
-        trimesh.transformations.euler_matrix(*self.rot_angles, axes="szyx"),
-      )
+      trimesh.transformations.euler_matrix(*self.rot_angles, axes="szyx"),
     )
 
     mesh = self._get_origin_mesh(scale)

@@ -193,3 +193,7 @@ class LumericalSession(Session):
     if self.fsp_data or not self.temp_dir:
       return LumericalFSPFile(self.fsp_data, self.save_path if not self.temp_dir else None, self.engine)
     return None
+
+class GSvitSession(Session):
+  def __init__(self, engine):
+    self.engine = engine

@@ -209,6 +209,28 @@ class SimulationObject(ABC):
 
     return res
 
+  def add_simulation(self, t, func):
+    """Adds a custom simulation.
+
+    Parameters
+    ----------
+    t : str
+      The simulation type being added. Can by any string representing a short 1-word or so 
+      description of the simuation
+    func : callable
+      The simulation function
+    """
+
+    try:
+      self._check_sim_type(t)
+      
+      raise ValueError("A simulation of type '%s' is already defined" % t)
+    except NotImplementedError:
+      pass
+
+    setattr(self, "_simulate_" + t, lambda *args, **kwargs: func(self, *args, **kwargs))
+      
+
   def simulate(self, t=None, save=True, mesh_regions=[], **kwargs):
     """This is the main function that is called to run a simulation.
     Note: The values of the additional keyword arguments here can only be 
