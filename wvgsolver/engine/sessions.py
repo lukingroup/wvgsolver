@@ -130,7 +130,7 @@ class LumericalSession(Session):
     self.fdtd.switchtolayout()
     self.sim_region.simulation_time = t
 
-  def set_sim_region(self, pos=None, size=None, boundaries={}):
+  def set_sim_region(self, pos=None, size=None, boundaries={}, dim2=False):
     self.fdtd.switchtolayout()
     if pos is not None:
       self.sim_region.x = pos.x
@@ -158,7 +158,9 @@ class LumericalSession(Session):
         if self.sim_region[min_key] in [3, 6]:
           self.sim_region[min_key] = 1
         self.sim_region[mapped_key] = self.boundary_values_map[boundaries[key]]
-  
+ 
+    self.sim_region.dimension = 1 if dim2 else 2
+
   def _prerun(self):
     self.fdtd.switchtolayout()
     for f in glob.iglob(os.path.join(self.working_path, self.name + "*.log")):
@@ -196,4 +198,45 @@ class LumericalSession(Session):
 
 class GSvitSession(Session):
   def __init__(self, engine):
-    self.engine = engine
+    super().__init__(engine)
+    
+    if self.engine.temp_dir:
+      self.temp_dir = tempfile.TemporaryDirectory(dir=self.engine.working_path)
+      self.working_path = self.temp_dir.name
+    else:
+      self.temp_dir = None
+      self.working_path = os.path.join(self.engine.working_path, self.name)
+      if not os.path.isdir(self.working_path):
+        os.mkdir(self.working_path)
+
+    self.parameter_path = os.path.join(self.working_path, "params.par")
+
+  def close(self):
+    pass
+
+  def _set_mesh_regions(self, regions=[]):
+    pass
+
+  def _set_structures(self, structs=[]):
+    self._structures = ""
+    
+    for s in structs:
+      self._structures += s.add() + "\n"
+
+  def set_sim_region(self, pos=None, size=None, boundaries={}):
+    pass
+
+  def set_sim_time(self, t):
+    pass
+
+  def _set_sources(self, sources=[]):
+    pass
+
+  def _runsim(self, options={}):
+    pass
+
+  def _prerun(self):
+    pass
+
+  def get_postrunres(self):
+    return None
