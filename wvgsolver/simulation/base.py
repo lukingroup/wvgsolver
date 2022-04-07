@@ -182,8 +182,6 @@ class SimulationObject(ABC):
     if sim_type is None:
       return self._simulate_results
   
-    self._check_sim_type(sim_type)
-
     if not sim_type in self._simulate_results:
       return []
     if not kwargs:

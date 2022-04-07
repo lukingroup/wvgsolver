@@ -346,7 +346,7 @@ class Fields(Analysis):
       mtype = 8
 
     time = sess.fdtd.addtime(name=self.monitor_name, monitor_type=mtype, x=self.bbox.pos.x, y=self.bbox.pos.y,
-      z=self.bbox.pos.z, output_Hx=True, output_Hy=True, output_Hz=True, output_Px=True, output_Py=True, output_Pz=True)
+      z=self.bbox.pos.z, output_Hx=False, output_Hy=False, output_Hz=False, output_Px=False, output_Py=False, output_Pz=False)
     time.stop_method = 1
     time.start_time = self.start_time
    
@@ -380,7 +380,7 @@ class Fields(Analysis):
     sess.fdtd.delete()
 
   def _analyze_lumerical(self, sess):
-    fields = ["Ey", "Px", "Py", "Pz"]
+    fields = ["Ex", "Ey", "Ez"]
 
     return np.stack(
       list(filter(
@@ -388,3 +388,53 @@ class Fields(Analysis):
         [ np.real(sess.fdtd.getdata(self.monitor_name, f)) for f in fields ]
       ))
     )
+
+class Index(Analysis):
+  def __init__(self, bbox, ndims=3, norm_axis=AXIS_Z, axis=AXIS_X):
+    self.monitor_name = randstring()
+    self.bbox = bbox
+    self.ndims = ndims
+    self.norm_axis= norm_axis
+    self.axis = axis
+
+  def _setup_lumerical(self, sess):
+    type_map = {}
+    type_map[AXIS_X] = 1
+    type_map[AXIS_Y] = 2
+    type_map[AXIS_Z] = 3
+
+    mtype = 4
+    if self.ndims == 2:
+      mtype = type_map[self.norm_axis]
+
+    index = sess.fdtd.addindex(name=self.monitor_name, monitor_type=mtype, x=self.bbox.pos.x, y=self.bbox.pos.y, z=self.bbox.pos.z)
+   
+    if self.ndims == 2:
+      if self.norm_axis == AXIS_X:
+        index.x = self.bbox.pos.x + self.bbox.size.x / 2
+        index.y_span = self.bbox.size.y
+        index.z_span = self.bbox.size.z
+      elif self.norm_axis == AXIS_Y:
+        index.x_span = self.bbox.size.x
+        index.y = self.bbox.pos.y + self.bbox.size.y / 2
+        index.z_span = self.bbox.size.z
+      else:
+        index.x_span = self.bbox.size.x
+        index.y_span = self.bbox.size.y
+        index.z = self.bbox.pos.z + self.bbox.size.z / 2
+    else:
+      index.x_span = self.bbox.size.x
+      index.y_span = self.bbox.size.y
+      index.z_span = self.bbox.size.z
+
+  def _cleanup_lumerical(self, sess):
+    sess.fdtd.select(self.monitor_name)
+    sess.fdtd.delete()
+
+  def _analyze_lumerical(self, sess):
+    vmap = {}
+    vmap[AXIS_X] = "x"
+    vmap[AXIS_Y] = "y"
+    vmap[AXIS_Z] = "z"
+
+    return sess.fdtd.getdata(self.monitor_name, "index_" + vmap[self.axis])

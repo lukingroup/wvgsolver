@@ -192,12 +192,14 @@ class UnitCell(SimulationObject):
 
 class Waveguide(SimulationObject):
   """This class represents a general waveguide structure"""
-  def __init__(self, structures=[], engine=None, load_path=None):
+  def __init__(self, structures=[], size=Vec3(1e6), engine=None, load_path=None):
     """
     Parameters
     ----------
     structures : list or Structure
       Structures that comprise this waveguide
+    size : Vec3
+      The size of the overal waveguide
     engine : Engine
       Engine to run simulations with
     load_path : str or None
@@ -205,6 +207,7 @@ class Waveguide(SimulationObject):
     """
    
     self._structures = structures if isinstance(structures, list) else [structures] 
+    self._size = size
     super().__init__(engine, load_path)
 
     self._default_sim_type = "guidedness"
@@ -217,9 +220,12 @@ class Waveguide(SimulationObject):
   def _load_data(self, data):
     self._structures = data["structures"]
 
-  def get_structures(self):
+  def get_structures(self, sim_type=None):
     return self._structures
-  
+ 
+  def _getsize(self):
+    return self._size
+
   def _simulate_guidedness(self, sess, target_freq=400e12, bboxes={}, sim_size=Vec3(3, 4, 4), source_pos=-1, freq_span=0, sim_time=200e-15, source_size=3, TEonly=True):
     """Simulates the guidedness of the cavity by using a mode source in the positive x direction and calculating 
     the transmission and reflection coefficients along the x axis. The sum of these coefficients indicates the 
