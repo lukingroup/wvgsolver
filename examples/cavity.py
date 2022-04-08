@@ -32,7 +32,7 @@ cavity = Cavity1D(
 )
 
 # By setting the save path here, the cavity will save itself after each simulation to this file
-cavity.save("cavity.obj")
+# cavity.save("cavity.obj")
 
 r3 = cavity.simulate("guidedness", target_freq=target_frequency)
 r1 = cavity.simulate("resonance", target_freq=target_frequency)
@@ -53,4 +53,3 @@ r2.show()
 
 
 print("Guidedness: %s" % r3)
-

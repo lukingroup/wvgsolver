@@ -339,7 +339,7 @@ class Cavity1D(Waveguide):
     self._center_shift = center_shift
     self._size_override = size
 
-    super().__init__(structures, engine, load_path)
+    super().__init__(structures=structures, engine=engine, load_path=load_path, size=size)
 
     self._default_sim_type = "resonance"
     self._no_sess_sims = ["quasipotential"]
