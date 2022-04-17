@@ -436,9 +436,20 @@ class Cavity1D(Waveguide):
       A plotable Parser containing the quasipotential data. See parse/plotables for more info
     """
     output = []
-    for c in self._unit_cells:
-      gap = c.simulate("bandgap", **kwargs)
-      output.append(min(gap[1] - target_freq, target_freq - gap[0]))
+    memo = []
+    for cidx, c in enumerate(self._unit_cells):
+      found = False
+      for m in memo:
+        if c.eq_structs(m[0]):
+          output.append(m[1])
+          found = True
+
+      if not found:
+        logging.info("Simulating cell %d/%d" % (cidx + 1, len(self._unit_cells)))
+        gap = c.simulate("bandgap", **kwargs)
+        r = target_freq - gap[0]
+        output.append(r)
+        memo.append((c, r))
     
     return Quasipotential(output)
 

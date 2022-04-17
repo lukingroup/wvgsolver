@@ -2,6 +2,7 @@ import uuid
 from abc import ABC, abstractmethod
 from ..utils.misc import hasmethod
 from ..engine import getDefaultEngine
+from collections import Counter
 import pickle
 import copy
 import datetime
@@ -297,3 +298,6 @@ class SimulationObject(ABC):
       raise err
 
     return res
+
+  def eq_structs(self, other, sim_type=None):
+    return Counter(self.get_structures(sim_type)) == Counter(other.get_structures(sim_type))

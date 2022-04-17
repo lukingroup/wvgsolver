@@ -324,12 +324,13 @@ class Transmission(Analysis):
       return sess.fdtd.getv("Tf")
 
 class Fields(Analysis):
-  def __init__(self, bbox, ndims=2, axis=AXIS_Z, start_time=0):
+  def __init__(self, bbox, ndims=2, axis=AXIS_Z, start_time=0, downsample=1):
     self.monitor_name = randstring()
     self.bbox = bbox
     self.start_time = start_time
     self.ndims = ndims
     self.axis = axis
+    self.downsample = downsample
 
   def _setup_lumerical(self, sess):
     type_map = {}
@@ -353,27 +354,39 @@ class Fields(Analysis):
     if self.ndims == 1:
       if self.axis == AXIS_X:
         time.x_span = self.bbox.size.x
+        time.down_sample_X = self.downsample
       elif self.axis == AXIS_Y:
         time.y_span = self.bbox.size.y
+        time.down_sample_Y = self.downsample
       else:
         time.z_span = self.bbox.size.z
+        time.down_sample_Z = self.downsample
     elif self.ndims == 2:
       if self.axis == AXIS_X:
         time.x = self.bbox.pos.x + self.bbox.size.x / 2
         time.y_span = self.bbox.size.y
         time.z_span = self.bbox.size.z
+        time.down_sample_Y = self.downsample
+        time.down_sample_Z = self.downsample
       elif self.axis == AXIS_Y:
         time.x_span = self.bbox.size.x
         time.y = self.bbox.pos.y + self.bbox.size.y / 2
         time.z_span = self.bbox.size.z
+        time.down_sample_X = self.downsample
+        time.down_sample_Z = self.downsample
       else:
         time.x_span = self.bbox.size.x
         time.y_span = self.bbox.size.y
         time.z = self.bbox.pos.z + self.bbox.size.z / 2
+        time.down_sample_X = self.downsample
+        time.down_sample_Y = self.downsample
     elif self.ndims == 3:
       time.x_span = self.bbox.size.x
       time.y_span = self.bbox.size.y
       time.z_span = self.bbox.size.z
+      time.down_sample_X = self.downsample
+      time.down_sample_Y = self.downsample
+      time.down_sample_Z = self.downsample
 
   def _cleanup_lumerical(self, sess):
     sess.fdtd.select(self.monitor_name)
@@ -390,12 +403,13 @@ class Fields(Analysis):
     )
 
 class Index(Analysis):
-  def __init__(self, bbox, ndims=3, norm_axis=AXIS_Z, axis=AXIS_X):
+  def __init__(self, bbox, ndims=3, norm_axis=AXIS_Z, axis=AXIS_X, downsample=1):
     self.monitor_name = randstring()
     self.bbox = bbox
     self.ndims = ndims
     self.norm_axis= norm_axis
     self.axis = axis
+    self.downsample = downsample
 
   def _setup_lumerical(self, sess):
     type_map = {}
@@ -414,18 +428,27 @@ class Index(Analysis):
         index.x = self.bbox.pos.x + self.bbox.size.x / 2
         index.y_span = self.bbox.size.y
         index.z_span = self.bbox.size.z
+        time.down_sample_Y = self.downsample
+        time.down_sample_Z = self.downsample
       elif self.norm_axis == AXIS_Y:
         index.x_span = self.bbox.size.x
         index.y = self.bbox.pos.y + self.bbox.size.y / 2
         index.z_span = self.bbox.size.z
+        time.down_sample_X = self.downsample
+        time.down_sample_Z = self.downsample
       else:
         index.x_span = self.bbox.size.x
         index.y_span = self.bbox.size.y
         index.z = self.bbox.pos.z + self.bbox.size.z / 2
+        time.down_sample_X = self.downsample
+        time.down_sample_Y = self.downsample
     else:
       index.x_span = self.bbox.size.x
       index.y_span = self.bbox.size.y
       index.z_span = self.bbox.size.z
+      time.down_sample_X = self.downsample
+      time.down_sample_Y = self.downsample
+      time.down_sample_Z = self.downsample
 
   def _cleanup_lumerical(self, sess):
     sess.fdtd.select(self.monitor_name)
