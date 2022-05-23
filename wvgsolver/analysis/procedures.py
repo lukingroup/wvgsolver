@@ -66,7 +66,7 @@ class WaveEnergy(Analysis):
     time.stop_method = 2
     time.start_time = self.start_time
     # Allow for one period
-    time.stop_time = self.start_time + 1 / self.target_freq
+    time.stop_time = self.start_time + 2 / self.target_freq
 
     index = sess.fdtd.addindex(name=self.index_monitor, monitor_type=4, x=self.bbox.pos.x, y=self.bbox.pos.y,
       z=self.bbox.pos.z, down_sample_X=self.downsample, down_sample_Y=self.downsample, down_sample_Z=self.downsample, use_source_limits=True)
@@ -262,13 +262,14 @@ class SideWavePower(Analysis):
     return self.side * 0.5 * (np.max(data) + np.min(data))
 
 class Transmission(Analysis):
-  def __init__(self, bbox, axis, side, target_freq, freq_span, freq_points=20):
+  def __init__(self, bbox, axis, side, target_freq, freq_span, freq_points=20, return_spectrum=False):
     self.bbox = bbox
     self.axis = axis
     self.side = side
     self.target_freq = target_freq
     self.freq_span = freq_span
     self.freq_points = freq_points
+    self.return_spectrum = return_spectrum
     self.monitor_name = randstring()
 
   def _setup_lumerical(self, sess):
@@ -314,5 +315,149 @@ class Transmission(Analysis):
     """ % self.monitor_name
     sess.fdtd.eval(script)
 
-    return sess.fdtd.getv("Tf")
+    if self.return_spectrum:
+      return {
+        "f": sess.fdtd.getv("f"),
+        "T": sess.fdtd.getv("T")
+      }
+    else:
+      return sess.fdtd.getv("Tf")
 
+class Fields(Analysis):
+  def __init__(self, bbox, ndims=2, axis=AXIS_Z, start_time=0, downsample=1):
+    self.monitor_name = randstring()
+    self.bbox = bbox
+    self.start_time = start_time
+    self.ndims = ndims
+    self.axis = axis
+    self.downsample = downsample
+
+  def _setup_lumerical(self, sess):
+    type_map = {}
+    type_map[AXIS_X] = 1
+    type_map[AXIS_Y] = 2
+    type_map[AXIS_Z] = 3
+
+    mtype = 1
+    if self.ndims == 1:
+      mtype = type_map[self.axis] + 1
+    elif self.ndims == 2:
+      mtype = type_map[self.axis] + 4
+    elif self.ndims == 3:
+      mtype = 8
+
+    time = sess.fdtd.addtime(name=self.monitor_name, monitor_type=mtype, x=self.bbox.pos.x, y=self.bbox.pos.y,
+      z=self.bbox.pos.z, output_Hx=False, output_Hy=False, output_Hz=False, output_Px=False, output_Py=False, output_Pz=False)
+    time.stop_method = 1
+    time.start_time = self.start_time
+   
+    if self.ndims == 1:
+      if self.axis == AXIS_X:
+        time.x_span = self.bbox.size.x
+        time.down_sample_X = self.downsample
+      elif self.axis == AXIS_Y:
+        time.y_span = self.bbox.size.y
+        time.down_sample_Y = self.downsample
+      else:
+        time.z_span = self.bbox.size.z
+        time.down_sample_Z = self.downsample
+    elif self.ndims == 2:
+      if self.axis == AXIS_X:
+        time.x = self.bbox.pos.x + self.bbox.size.x / 2
+        time.y_span = self.bbox.size.y
+        time.z_span = self.bbox.size.z
+        time.down_sample_Y = self.downsample
+        time.down_sample_Z = self.downsample
+      elif self.axis == AXIS_Y:
+        time.x_span = self.bbox.size.x
+        time.y = self.bbox.pos.y + self.bbox.size.y / 2
+        time.z_span = self.bbox.size.z
+        time.down_sample_X = self.downsample
+        time.down_sample_Z = self.downsample
+      else:
+        time.x_span = self.bbox.size.x
+        time.y_span = self.bbox.size.y
+        time.z = self.bbox.pos.z + self.bbox.size.z / 2
+        time.down_sample_X = self.downsample
+        time.down_sample_Y = self.downsample
+    elif self.ndims == 3:
+      time.x_span = self.bbox.size.x
+      time.y_span = self.bbox.size.y
+      time.z_span = self.bbox.size.z
+      time.down_sample_X = self.downsample
+      time.down_sample_Y = self.downsample
+      time.down_sample_Z = self.downsample
+
+  def _cleanup_lumerical(self, sess):
+    sess.fdtd.select(self.monitor_name)
+    sess.fdtd.delete()
+
+  def _analyze_lumerical(self, sess):
+    fields = ["Ex", "Ey", "Ez"]
+
+    return np.stack(
+      list(filter(
+        lambda a: isinstance(a, np.ndarray) and a.size != 0,
+        [ np.real(sess.fdtd.getdata(self.monitor_name, f)) for f in fields ]
+      ))
+    )
+
+class Index(Analysis):
+  def __init__(self, bbox, ndims=3, norm_axis=AXIS_Z, axis=AXIS_X, downsample=1):
+    self.monitor_name = randstring()
+    self.bbox = bbox
+    self.ndims = ndims
+    self.norm_axis= norm_axis
+    self.axis = axis
+    self.downsample = downsample
+
+  def _setup_lumerical(self, sess):
+    type_map = {}
+    type_map[AXIS_X] = 1
+    type_map[AXIS_Y] = 2
+    type_map[AXIS_Z] = 3
+
+    mtype = 4
+    if self.ndims == 2:
+      mtype = type_map[self.norm_axis]
+
+    index = sess.fdtd.addindex(name=self.monitor_name, monitor_type=mtype, x=self.bbox.pos.x, y=self.bbox.pos.y, z=self.bbox.pos.z)
+   
+    if self.ndims == 2:
+      if self.norm_axis == AXIS_X:
+        index.x = self.bbox.pos.x + self.bbox.size.x / 2
+        index.y_span = self.bbox.size.y
+        index.z_span = self.bbox.size.z
+        time.down_sample_Y = self.downsample
+        time.down_sample_Z = self.downsample
+      elif self.norm_axis == AXIS_Y:
+        index.x_span = self.bbox.size.x
+        index.y = self.bbox.pos.y + self.bbox.size.y / 2
+        index.z_span = self.bbox.size.z
+        time.down_sample_X = self.downsample
+        time.down_sample_Z = self.downsample
+      else:
+        index.x_span = self.bbox.size.x
+        index.y_span = self.bbox.size.y
+        index.z = self.bbox.pos.z + self.bbox.size.z / 2
+        time.down_sample_X = self.downsample
+        time.down_sample_Y = self.downsample
+    else:
+      index.x_span = self.bbox.size.x
+      index.y_span = self.bbox.size.y
+      index.z_span = self.bbox.size.z
+      time.down_sample_X = self.downsample
+      time.down_sample_Y = self.downsample
+      time.down_sample_Z = self.downsample
+
+  def _cleanup_lumerical(self, sess):
+    sess.fdtd.select(self.monitor_name)
+    sess.fdtd.delete()
+
+  def _analyze_lumerical(self, sess):
+    vmap = {}
+    vmap[AXIS_X] = "x"
+    vmap[AXIS_Y] = "y"
+    vmap[AXIS_Z] = "z"
+
+    return sess.fdtd.getdata(self.monitor_name, "index_" + vmap[self.axis])

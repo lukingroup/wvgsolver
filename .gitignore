@@ -6,3 +6,4 @@ MANIFEST
 *.pyc
 *.obj
 examples/v0p4p2/**
+examples/fsps/**

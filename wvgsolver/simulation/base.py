@@ -2,6 +2,7 @@ import uuid
 from abc import ABC, abstractmethod
 from ..utils.misc import hasmethod
 from ..engine import getDefaultEngine
+from collections import Counter
 import pickle
 import copy
 import datetime
@@ -182,8 +183,6 @@ class SimulationObject(ABC):
     if sim_type is None:
       return self._simulate_results
   
-    self._check_sim_type(sim_type)
-
     if not sim_type in self._simulate_results:
       return []
     if not kwargs:
@@ -208,6 +207,28 @@ class SimulationObject(ABC):
       res = filter(lambda r: r["status"] == status, res)
 
     return res
+
+  def add_simulation(self, t, func):
+    """Adds a custom simulation.
+
+    Parameters
+    ----------
+    t : str
+      The simulation type being added. Can by any string representing a short 1-word or so 
+      description of the simuation
+    func : callable
+      The simulation function
+    """
+
+    try:
+      self._check_sim_type(t)
+      
+      raise ValueError("A simulation of type '%s' is already defined" % t)
+    except NotImplementedError:
+      pass
+
+    setattr(self, "_simulate_" + t, lambda *args, **kwargs: func(self, *args, **kwargs))
+      
 
   def simulate(self, t=None, save=True, mesh_regions=[], **kwargs):
     """This is the main function that is called to run a simulation.
@@ -277,3 +298,6 @@ class SimulationObject(ABC):
       raise err
 
     return res
+
+  def eq_structs(self, other, sim_type=None):
+    return Counter(self.get_structures(sim_type)) == Counter(other.get_structures(sim_type))

@@ -14,7 +14,7 @@ import numpy as np
 import os
 
 
-hole_radii = np.loadtxt(os.path.join(os.path.curdir, 'examples/v0p4p2/holeStruct_3-3.txt'), dtype=float, usecols=(0,1), unpack=False)
+hole_radii = np.loadtxt(os.path.join(os.path.curdir, 'examples/v0p4p2/holeStruct.txt'), dtype=float, usecols=(0,1), unpack=False)
 hole_radii /= 2
 lattice_constants = np.loadtxt(os.path.join(os.path.curdir, 'examples/v0p4p2/periodStruct_3-3.txt'), dtype=float, usecols=(0), unpack=False)
 center_cell = 12
@@ -32,6 +32,7 @@ target_frequency = 406.774e12
 
 # Use level 4 automeshing accuracy, and show the Lumerical GUI while running simulations
 engine = LumericalEngine(mesh_accuracy=5, hide=False)
+# engine = LumericalEngine(mesh_accuracy=6, hide=False, working_path="./fsps")
 
 unit_cells = []
 for ((radius_x,radius_y), lattice_constant) in zip(hole_radii,lattice_constants):
@@ -61,6 +62,7 @@ man_mesh = MeshRegion(BBox(Vec3(0),Vec3(12e-6,0.7e-6,0.4e-6)), 12e-9, dy=None, d
 # specify a long pulse to make narrow band and target lossier mode closer to target_frequency
 r1 = cavity.simulate("resonance", target_freq=target_frequency, source_pulselength=200e-15, 
                     analyze_time=1000e-15, mesh_regions = [man_mesh], sim_size=Vec3(2, 4, 8))
+# r1 = cavity.simulate("resonance", target_freq=target_frequency, mesh_regions = [man_mesh], sim_size=Vec3(2, 8, 14))
 
 # Print the reults and plot the electric field profiles
 print("F: %f, Vmode: %f, Qwvg: %f, Qsc: %f" % (
