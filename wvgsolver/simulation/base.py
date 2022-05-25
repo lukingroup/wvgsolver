@@ -21,7 +21,7 @@ class SimulationObject(ABC):
   parameters (structures, unit cells, etc). This ensures that all the simulation results associated with
   a particular instance of a SimulationObject come from simulating the same object.
   """
-  def __init__(self, engine=None, load_path=None):
+  def __init__(self, engine=None, load_path=None, metadata=None):
     """
     Parameters
     ----------
@@ -31,6 +31,8 @@ class SimulationObject(ABC):
     load_path : str or None
       The file path to load this object from. If this parameter is not None, then the object from
       that file is loaded and you are not expected to modify the object further
+    metadata : any
+      Any associated metadata
     """
     if engine is None:
       engine = getDefaultEngine()
@@ -40,6 +42,7 @@ class SimulationObject(ABC):
     self._default_sim_type = ""
     self._no_sess_sims = []
     self.save_path = load_path
+    self.metadata = metadata
 
     if load_path is not None:
       self.load(load_path)
@@ -79,6 +82,7 @@ class SimulationObject(ABC):
     """
     data = self._save_data()
     data["simulate_results"] = {}
+    data["metadata"] = copy.copy(self.metadata)
     for t in self._simulate_results:
       data["simulate_results"][t] = []
       for r in self._simulate_results[t]:
@@ -98,20 +102,25 @@ class SimulationObject(ABC):
     """
     self._load_data(data)
     self._simulate_results = data["simulate_results"]
+    self.metadata = data["metadata"]
     for t in self._simulate_results:
       for r in self._simulate_results[t]:
         if "sess_res" in r:
           r["sess_res"].set_engine(self.engine)
 
-  def save(self, fpath):
+  def save(self, fpath=None):
     """Save this object to a file path. The object then keeps track of this file path and re-saves
     itself to that file after every simulation
 
     Parameters
     ----------
     fpath : str
+      The file path to save to. If None, attempts to use the previously set file path
     """
-    self.save_path = fpath
+    if fpath is not None:
+      self.save_path = fpath
+    elif self.save_path is None:
+      raise ValueError("No save path set, please provide one")
     pickle.dump(self.save_data(), open(self.save_path, "wb"))
   
   def load(self, fpath):

@@ -6,3 +6,4 @@ shapely
 phidl
 PyQt5
 pyglet
+matplotlib

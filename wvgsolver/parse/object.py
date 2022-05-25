@@ -15,7 +15,7 @@ phidl.set_quickplot_options(blocking=True)
 
 class ObjectParser(Parser, ABC):
   """Parses a SimlationObject for some kind of visualization task"""
-  def __init__(self, data, scale=1e-6, origin=Vec3(0)):
+  def __init__(self, data, scale=1e-6, origin=Vec3(0), layer=0):
     """
     Parameters
     ----------
@@ -26,22 +26,27 @@ class ObjectParser(Parser, ABC):
       corresponds to geometry of length 1 micron
     origin : Vec3
       The origin of the slicing plane
+    layer : int
+      Layer of the resulting geometry
     """
     self.scale = scale
     self.origin = origin.tolist()
+    self.layer = layer
 
     super().__init__(data)
 
 class ObjectGDSParser(ObjectParser, ABC):
   """Base class for parsers that take a SimulationObject, slice it along a plane, and return 
   the resulting 2D geometry as a Phidl GDS device"""
-  def __init__(self, data, scale=1e-6, origin=Vec3(0), axis=AXIS_Z, name="main", invert=False):
+  def __init__(self, data, scale=1e-6, layer=0, origin=Vec3(0), axis=AXIS_Z, name="main", invert=False):
     """
     Parameters
     ----------
     data : SimulationObject
       See documentation of ObjectParser
     scale : float
+      See documentation of ObjectParser
+    layer : int
       See documentation of ObjectParser
     origin : Vec3
       See documentation of ObjectParser
@@ -57,7 +62,7 @@ class ObjectGDSParser(ObjectParser, ABC):
     self.device = phidl.Device(name=name)
     self.polygonset = None
     
-    super().__init__(data, scale, origin)
+    super().__init__(data, scale, origin, layer)
 
   def show(self):
     """Show the geometry in a plot"""
@@ -102,7 +107,7 @@ class DielectricExtrusionFaceGDSParser(ObjectGDSParser):
         op = "or" if polys[pidx]["struct"].material.nindex > 1  else "not"
         if self.invert:
           op = "not" if op == "or" else "or"
-        totalpoly = gdspy.boolean(totalpoly, polys[pidx]["poly"], op)
+        totalpoly = gdspy.boolean(totalpoly, polys[pidx]["poly"], op, layer=self.layer)
       
       if totalpoly:
         self.polygonset = totalpoly
@@ -156,7 +161,7 @@ class DielectricConvexSliceGDSParser(ObjectGDSParser):
         op = "or" if polys[pidx]["struct"].material.nindex > 1  else "not"
         if self.invert:
           op = "not" if op == "or" else "or"
-        totalpoly = gdspy.boolean(totalpoly, polys[pidx]["poly"], op)
+        totalpoly = gdspy.boolean(totalpoly, polys[pidx]["poly"], op, layer=self.layer)
       
       if totalpoly:
         self.polygonset = totalpoly

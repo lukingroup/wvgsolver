@@ -12,7 +12,7 @@ import json
 class UnitCell(SimulationObject):
   """This class represents a Nanophotonic unit cell as part of a cavity,
   and provides several simulations described below"""
-  def __init__(self, structures=[], size=Vec3(1e-9), engine=None, load_path=None):
+  def __init__(self, structures=[], size=Vec3(1e-9), engine=None, load_path=None, metadata=None):
     """
     Parameters
     ----------
@@ -28,11 +28,13 @@ class UnitCell(SimulationObject):
     load_path : str or None
       If provided, loads a unit cell from the given file path and populates all internal 
       data, including the list of structures, from that file
+    metadata : any
+      Any associated metadata
     """
     self._structures = structures if isinstance(structures, list) else [structures]
     self._size = size
 
-    super().__init__(engine, load_path)
+    super().__init__(engine=engine, load_path=load_path, metadata=metadata)
 
     self._default_sim_type = "bandstructure"
 
@@ -192,7 +194,7 @@ class UnitCell(SimulationObject):
 
 class Waveguide(SimulationObject):
   """This class represents a general waveguide structure"""
-  def __init__(self, structures=[], size=Vec3(1e6), engine=None, load_path=None):
+  def __init__(self, structures=[], size=Vec3(1e6), engine=None, load_path=None, metadata=None):
     """
     Parameters
     ----------
@@ -204,11 +206,13 @@ class Waveguide(SimulationObject):
       Engine to run simulations with
     load_path : str or None
       If provided, loads a waveguide from the given file path
+    metadata : any
+      Any associated metadata
     """
    
     self._structures = structures if isinstance(structures, list) else [structures] 
     self._size = size
-    super().__init__(engine, load_path)
+    super().__init__(engine=engine, load_path=load_path, metadata=metadata)
 
     self._default_sim_type = "guidedness"
 
@@ -307,7 +311,7 @@ class Cavity1D(Waveguide):
   additional structures (such as a beam). All simulations on this cavity are performed by stacking the list of
   unit cells in the x dimension, centering this stack around the origin, and adding any additional structures.
   """
-  def __init__(self, unit_cells=[], structures=[], size=None, center_cell=None, center_shift=None, engine=None, load_path=None):
+  def __init__(self, unit_cells=[], structures=[], size=None, center_cell=None, center_shift=None, engine=None, load_path=None, metadata=None):
     """
     Parameters
     ----------
@@ -332,6 +336,8 @@ class Cavity1D(Waveguide):
     load_path : str or None
       If provided, loads a cavity from the given file path and populates all internal 
       data, including the list of unit cells, from that file
+    metadata : any
+      Any associated metadata
     """
     
     self._unit_cells = unit_cells if isinstance(unit_cells, list) else [unit_cells]
@@ -339,7 +345,7 @@ class Cavity1D(Waveguide):
     self._center_shift = center_shift
     self._size_override = size
 
-    super().__init__(structures=structures, engine=engine, load_path=load_path, size=size)
+    super().__init__(structures=structures, engine=engine, load_path=load_path, size=size, metadata=metadata)
 
     self._default_sim_type = "resonance"
     self._no_sess_sims = ["quasipotential"]
