@@ -34,7 +34,7 @@ class PolygonStructure(Structure):
     return trimesh.creation.extrude_polygon(
       polygon=shapely.geometry.Polygon(np.array(self.verts) / scale), 
       height=(self.height / scale),
-      transform=trimesh.transformations.translation_matrix([0, 0, -self.height / (2 * scale)])
+      transform=trimesh.transformations.translation_matrix([0, 0, -self.height/(2*scale)])
     )
 
   def __repr__(self): 

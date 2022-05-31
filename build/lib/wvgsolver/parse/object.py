@@ -168,7 +168,7 @@ class ObjectParser3D(ObjectParser):
   To avoid Z-fighting, this scales structures with lower order a tiny bit larger than
   structures with a higher order.
   """
-  def __init__(self, data, scale=1e-6, origin=Vec3(0)):
+  def __init__(self, data, scale=1e-6, origin=Vec3(0), order_scale=0.01):
     """
     Parameters
     ----------
@@ -178,16 +178,24 @@ class ObjectParser3D(ObjectParser):
       See documentation of ObjectParser
     origin : Vec3
       See documentation of ObjectParser
+    order_scale : float
+      How much the order affects the scale (to prevent z-fighting)
     """
 
     self.scene = trimesh.scene.Scene()
+    self.order_scale = order_scale
     super().__init__(data, scale, origin)
 
   def _parse(self):
     structs = self.data.get_structures()
 
+    min_order = None
     for s in structs:
-      mesh = s.get_mesh(self.scale * min(1.01, 1 + 0.001 * s.material.order))
+      if min_order is None or s.material.order < min_order:
+        min_order = s.material.order
+
+    for s in structs:
+      mesh = s.get_mesh(self.scale * (1 + self.order_scale * (s.material.order - min_order)))
       self.scene.add_geometry(mesh)
 
   def show(self):

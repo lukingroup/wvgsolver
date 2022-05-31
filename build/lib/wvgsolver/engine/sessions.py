@@ -130,7 +130,7 @@ class LumericalSession(Session):
     self.fdtd.switchtolayout()
     self.sim_region.simulation_time = t
 
-  def set_sim_region(self, pos=None, size=None, boundaries={}):
+  def set_sim_region(self, pos=None, size=None, boundaries={}, dim2=False):
     self.fdtd.switchtolayout()
     if pos is not None:
       self.sim_region.x = pos.x
@@ -158,7 +158,9 @@ class LumericalSession(Session):
         if self.sim_region[min_key] in [3, 6]:
           self.sim_region[min_key] = 1
         self.sim_region[mapped_key] = self.boundary_values_map[boundaries[key]]
-  
+ 
+    self.sim_region.dimension = 1 if dim2 else 2
+
   def _prerun(self):
     self.fdtd.switchtolayout()
     for f in glob.iglob(os.path.join(self.working_path, self.name + "*.log")):

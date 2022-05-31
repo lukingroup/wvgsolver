@@ -1,1 +1,1 @@
-from .objects import Cavity1D, UnitCell
+from .objects import Cavity1D, UnitCell, Waveguide
