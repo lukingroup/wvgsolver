@@ -2,6 +2,7 @@ from .base import Session
 import os
 import time
 import threading
+import subprocess
 import glob
 import logging
 import tempfile
@@ -188,8 +189,15 @@ class LumericalSession(Session):
 #    threading.Thread(target=lumericalLogFile, args=(self.working_path, self.name, stop_logging)).start()
 
     try:
-      # should use os.subprocess EK 060222
-      os.system("srun -n $SLURM_NTASKS --mpi=pmix fdtd-engine-ompi-lcl -fullinfo " + self.save_path)
+      # should use subprocess EK 060222
+      print(self.save_path)
+      command = ["srun -n $SLURM_NTASKS --mpi=pmix fdtd-engine-ompi-lcl -fullinfo " + self.save_path]
+      process = subprocess.Popen(command,stdout=subprocess.PIPE)
+
+      for line in process.stdout:
+        print(line)
+
+      process.wait()
       # self.fdtd.run()
     except Exception:
 #      stop_logging.set()
