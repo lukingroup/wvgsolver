@@ -176,14 +176,19 @@ class LumericalSession(Session):
       self.fsp_data = None
 
   def _runsim(self):
-    # self.fdtd.switchtolayout()
-    # self.fdtd.save(self.save_path)
+    self.fdtd.switchtolayout()
+    self.fdtd.save(self.save_path)
+
     # self._load_fsp()
+
+    # Close the CAD environment, and run the ompi solver
+    self.fdtd.close()
 
 #    stop_logging = threading.Event()
 #    threading.Thread(target=lumericalLogFile, args=(self.working_path, self.name, stop_logging)).start()
 
     try:
+      # should use os.subprocess EK 060222
       os.system("srun -n $SLURM_NTASKS --mpi=pmix fdtd-engine-ompi-lcl -fullinfo " + self.save_path)
       # self.fdtd.run()
     except Exception:
