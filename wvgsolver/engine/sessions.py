@@ -176,15 +176,16 @@ class LumericalSession(Session):
       self.fsp_data = None
 
   def _runsim(self):
-    self.fdtd.switchtolayout()
-    self.fdtd.save(self.save_path)
-    self._load_fsp()
+    # self.fdtd.switchtolayout()
+    # self.fdtd.save(self.save_path)
+    # self._load_fsp()
 
 #    stop_logging = threading.Event()
 #    threading.Thread(target=lumericalLogFile, args=(self.working_path, self.name, stop_logging)).start()
 
     try:
-      self.fdtd.run()
+      os.system("srun -n $SLURM_NTASKS --mpi=pmix fdtd-engine-ompi-lcl -fullinfo " + self.save_path)
+      # self.fdtd.run()
     except Exception:
 #      stop_logging.set()
       raise
