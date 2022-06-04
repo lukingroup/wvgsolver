@@ -180,7 +180,7 @@ class LumericalSession(Session):
     self.fdtd.switchtolayout()
     self.fdtd.save(self.save_path)
 
-    # self._load_fsp()
+    self._load_fsp()
 
     # Close the CAD environment, and run the ompi solver
     self.fdtd.close()
@@ -191,17 +191,23 @@ class LumericalSession(Session):
     try:
       # should use subprocess EK 060222
       print(self.save_path)
-      command = ["srun -n $SLURM_NTASKS --mpi=pmix fdtd-engine-ompi-lcl -fullinfo " + self.save_path]
-      process = subprocess.Popen(command,stdout=subprocess.PIPE)
+      #$SLURM_NTASKS
+      #command = ["srun -n 8 --mpi=pmix fdtd-engine-ompi-lcl -fullinfo " + self.save_path]
+      command = ["mpirun -np 8 fdtd-engine-ompi-lcl " + self.save_path]
+      process = subprocess.Popen(command,stdout=subprocess.PIPE,shell=True)
+      print("Launched ompi process")
 
-      for line in process.stdout:
-        print(line)
+      #for line in process.stdout:
+       # print(line)
 
       process.wait()
+      print("ompi process complete")
       # self.fdtd.run()
     except Exception:
 #      stop_logging.set()
       raise
+    self.fdtd = self.engine.lumapi.FDTD(hide=self.engine.hide)
+    self.fdtd.load(self.save_path)
 
 #    stop_logging.set()
   

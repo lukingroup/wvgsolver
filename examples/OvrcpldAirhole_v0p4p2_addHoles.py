@@ -39,12 +39,12 @@ target_frequency = 406.774e12
 engine = LumericalEngine(mesh_accuracy=6, hide=False, lumerical_path=FDTDLoc, working_path="./fsps")
 
 unit_cells = []
-for ((radius_x,radius_y), lattice_constant) in zip(hole_radii,lattice_constants):
-  cell_box = TriStructure(Vec3(0), Vec3(beam_width, apex_half_angle, lattice_constant), 
-                         DielectricMaterial(2.4028, order=2), rot_angles=(np.pi/2, np.pi/2, 0))
+#for ((radius_x,radius_y), lattice_constant) in zip(hole_radii,lattice_constants):
+#  cell_box = TriStructure(Vec3(0), Vec3(beam_width, apex_half_angle, lattice_constant), 
+#                         DielectricMaterial(2.4028, order=2), rot_angles=(np.pi/2, np.pi/2, 0))
   
-  cell_hole = CylinderStructure(Vec3(0), beam_height, radius_x, DielectricMaterial(1, order=1), radius2=radius_y)
-  unit_cells += [UnitCell(structures=[ cell_box, cell_hole ], size=Vec3(lattice_constant,beam_width,beam_height), engine=engine)]
+#  cell_hole = CylinderStructure(Vec3(0), beam_height, radius_x, DielectricMaterial(1, order=1), radius2=radius_y)
+#  unit_cells += [UnitCell(structures=[ cell_box, cell_hole ], size=Vec3(lattice_constant,beam_width,beam_height), engine=engine)]
 
 cavity = Cavity1D(
   unit_cells=unit_cells,
@@ -59,9 +59,10 @@ cavity = Cavity1D(
 # parsed.show()
 
 # By setting the save path here, the cavity will save itself after each simulation to this file
-cavity.save("3-3_man_mesh.obj")
+#cavity.save("3-3_man_mesh.obj")
 
 man_mesh = MeshRegion(BBox(Vec3(0),Vec3(12e-6,0.6e-6,0.5e-6)), 12e-9, dy=None, dz=None)
+#cavity = Cavity1D(load_path="3-3_man_mesh.obj",engine=engine)
 
 r1 = cavity.simulate("resonance", target_freq=target_frequency, mesh_regions = [man_mesh], sim_size=Vec3(2, 8, 14))
 
