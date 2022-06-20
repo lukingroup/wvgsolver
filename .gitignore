@@ -7,3 +7,4 @@ MANIFEST
 *.obj
 examples/v0p4p2/**
 examples/fsps/**
+wvgsolver.egg-info/
