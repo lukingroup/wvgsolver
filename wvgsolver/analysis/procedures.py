@@ -4,6 +4,11 @@ from ..utils.linalg import Vec3
 from ..utils.constants import C_LIGHT, F_EPSILON, AXIS_X, AXIS_Y, AXIS_Z
 import time
 import numpy as np
+try:
+  import meep as mp
+except:
+  pass
+from ..utils.meep import U_A, U_K, U_F, U_T
 
 class FrequencySpectrum(Analysis):
   def __init__(self, bbox, freqs, nmonitors=5, start_time=0):
@@ -45,6 +50,17 @@ class FrequencySpectrum(Analysis):
     sess.fdtd.eval(script)
 
     return sess.fdtd.getv("fd")
+
+  def _setup_eff1d(self, sess):
+    pass
+  
+  def _cleanup_eff1d(self, sess):
+    pass
+  
+  def _analyze_eff1d(self, sess):
+    res = np.zeros(len(self.freqs))
+    res[np.abs(self.freqs - sess.engine.mode_f).argmin()] = 1
+    return res
 
 class WaveEnergy(Analysis):
   def __init__(self, bbox, target_freq, start_time, downsample):
@@ -122,6 +138,31 @@ class WaveEnergy(Analysis):
     return sess.fdtd.getv("E_avg"), sess.fdtd.getv("E_maxdensity_avg"), \
       sess.fdtd.getv("index_x_max"), sess.fdtd.getv("index_y_max"), \
       sess.fdtd.getv("index_z_max")
+  
+  def set_resobj(self, En):
+    self.En = En
+
+  def _setup_eff1d(self, sess):
+    self.region = {
+      "time": self.start_time/U_T,
+      "type": "energy",
+      "args": (self.target_freq/U_F, 0, 1, mp.EnergyRegion(
+        center=mp.Vector3(z=self.bbox.pos.x/U_A),
+        size=mp.Vector3(z=self.bbox.size.x/U_A)
+      )),
+      "kwargs": {},
+      "callback": self.set_resobj
+    }
+    sess.add_analyze_region(self.region)
+  
+  def _cleanup_eff1d(self, sess):
+    sess.remove_analyze_region(self.region)
+    del self.region
+  
+  def _analyze_eff1d(self, sess, freq):
+    e = mp.get_total_energy(self.En)[0]
+    del self.En
+    return e, np.inf, 1, 1, 1
 
 class WaveProfile(Analysis):
   def __init__(self, bbox, axis, start_time, target_freq):
@@ -217,6 +258,15 @@ class WaveProfile(Analysis):
     return sess.fdtd.getv("EdensityX"), sess.fdtd.getv("EdensityY"), \
       sess.fdtd.getv("EdensityZ"), np.squeeze(sess.fdtd.getv("d1")), \
       np.squeeze(sess.fdtd.getv("d2")), np.real(sess.fdtd.getv("index_x"))
+  
+  def _setup_eff1d(self, sess):
+    pass
+  
+  def _cleanup_eff1d(self, sess):
+    pass
+  
+  def _analyze_eff1d(self, sess):
+    return None, None, None, None, None, None
 
 class SideWavePower(Analysis):
   def __init__(self, bbox, axis, side, start_time, target_freq):
@@ -260,6 +310,37 @@ class SideWavePower(Analysis):
   def _analyze_lumerical(self, sess):
     data = np.real(sess.fdtd.getdata(self.monitor_name, "power"))
     return self.side * 0.5 * (np.max(data) + np.min(data))
+  
+  def set_resobj(self, F):
+    self.F = F
+
+  def _setup_eff1d(self, sess):
+    if self.axis != AXIS_X:
+      return
+
+    self.region = {
+      "time": self.start_time/U_T,
+      "type": "flux",
+      "args": (self.target_freq/U_F, 0, 1, mp.FluxRegion(
+        center=mp.Vector3(z=(self.bbox.pos.x + self.side*self.bbox.size.x/2)/U_A),
+        size=mp.Vector3()
+      )),
+      "kwargs": {},
+      "callback": self.set_resobj
+    }
+    sess.add_analyze_region(self.region)
+  
+  def _cleanup_eff1d(self, sess):
+    if hasattr(self, "region"):
+      sess.remove_analyze_region(self.region)
+      del self.region
+  
+  def _analyze_eff1d(self, sess):
+    if not hasattr(self, "F"):
+      return np.inf
+    f = mp.get_fluxes(self.F)[0]
+    del self.F
+    return U_F*f*self.side
 
 class Transmission(Analysis):
   def __init__(self, bbox, axis, side, target_freq, freq_span, freq_points=20, return_spectrum=False):
@@ -322,6 +403,15 @@ class Transmission(Analysis):
       }
     else:
       return sess.fdtd.getv("Tf")
+  
+  def _setup_eff1d(self, sess):
+    pass
+  
+  def _cleanup_eff1d(self, sess):
+    pass
+  
+  def _analyze_eff1d(self, sess):
+    pass
 
 class Fields(Analysis):
   def __init__(self, bbox, ndims=2, axis=AXIS_Z, start_time=0, downsample=1):
@@ -401,6 +491,15 @@ class Fields(Analysis):
         [ np.real(sess.fdtd.getdata(self.monitor_name, f)) for f in fields ]
       ))
     )
+  
+  def _setup_eff1d(self, sess):
+    pass
+  
+  def _cleanup_eff1d(self, sess):
+    pass
+  
+  def _analyze_eff1d(self, sess):
+    pass
 
 class Index(Analysis):
   def __init__(self, bbox, ndims=3, norm_axis=AXIS_Z, axis=AXIS_X, downsample=1):
@@ -461,3 +560,12 @@ class Index(Analysis):
     vmap[AXIS_Z] = "z"
 
     return sess.fdtd.getdata(self.monitor_name, "index_" + vmap[self.axis])
+  
+  def _setup_eff1d(self, sess):
+    pass
+  
+  def _cleanup_eff1d(self, sess):
+    pass
+  
+  def _analyze_eff1d(self, sess):
+    pass

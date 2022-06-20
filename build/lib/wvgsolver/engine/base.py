@@ -82,9 +82,8 @@ class Session(ABC):
 
     return self.analyzers[k].analyze(self, *args, **kwargs)
 
-  @abstractmethod
   def get_postrunres(self):
-    pass
+    return None
 
   def run(self, analysis={}, analyze=True):
     self._prerun()

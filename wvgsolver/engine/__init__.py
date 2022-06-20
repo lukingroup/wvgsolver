@@ -1,5 +1,6 @@
-from .engines import DummyEngine, LumericalEngine
-from .misc import LumericalMeshRegion
+from .misc import DummyEngine
+from .lumerical import LumericalEngine
+from .meep import EffIndex1DEngine
 
 DEFAULT_ENGINE = DummyEngine()
 

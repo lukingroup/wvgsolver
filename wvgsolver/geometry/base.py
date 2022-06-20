@@ -21,7 +21,7 @@ class Geometry(EngineSpecific):
     return "Geometry(%s)" % self.name
 
   def add(self, session):
-    self.callImplementation("add", session)
+    return self.callImplementation("add", session)
 
 class Structure(Geometry, ABC):
   def __init__(self, pos, material, rot_angles=(0, 0, 0)):
@@ -81,6 +81,10 @@ class Structure(Geometry, ABC):
     -------
     mesh : trimesh.Trimesh
     """
+    pass
+
+  @abstractmethod
+  def contains(self, points, scale=1e-6):
     pass
 
   def __repr__(self):

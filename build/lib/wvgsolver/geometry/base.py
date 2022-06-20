@@ -3,6 +3,7 @@ from ..utils.misc import randstring
 from abc import ABC, abstractmethod
 from ..utils.constants import C_LIGHT
 from matplotlib.colors import to_rgba
+import trimesh
 import numpy as np
 import copy
 
@@ -20,7 +21,7 @@ class Geometry(EngineSpecific):
     return "Geometry(%s)" % self.name
 
   def add(self, session):
-    self.callImplementation("add", session)
+    return self.callImplementation("add", session)
 
 class Structure(Geometry, ABC):
   def __init__(self, pos, material, rot_angles=(0, 0, 0)):
@@ -58,9 +59,7 @@ class Structure(Geometry, ABC):
     """
     transform = np.dot(
       trimesh.transformations.translation_matrix((self.pos / scale).tolist()),
-      np.dot(
-        trimesh.transformations.euler_matrix(*self.rot_angles, axes="szyx"),
-      )
+      trimesh.transformations.euler_matrix(*self.rot_angles, axes="szyx"),
     )
 
     mesh = self._get_origin_mesh(scale)
@@ -84,8 +83,31 @@ class Structure(Geometry, ABC):
     """
     pass
 
+  @abstractmethod
+  def contains(self, points, scale=1e-6):
+    pass
+
   def __repr__(self):
     return "Structure(%s):%s" % (self.pos, super().__repr__())
+  
+  def __hash__(self):
+    return hash(str(self.pos) + str(hash(self.material)) + str(self.rot_angles) + \
+      str(trimesh.comparison.identifier_simple(self._get_origin_mesh(1e-6))))
+
+  def __eq__(self, other):
+    if not isinstance(other, Structure):
+      return False
+
+    if self.pos != other.pos or self.material != other.material or self.rot_angles != other.rot_angles:
+      return False
+
+    comp = trimesh.comparison.identifier_simple
+
+    scale = 1e-6
+    mesh = comp(self._get_origin_mesh(1e-6))
+    other_mesh = comp(other._get_origin_mesh(1e-6))
+
+    return np.array_equal(mesh, other_mesh)
 
 class Source(Geometry, ABC):
   def __init__(self, pos, frange, f, pulse_length, pulse_offset):
@@ -142,3 +164,9 @@ class Material(Geometry, ABC):
   
   def __repr__(self):
     return "Material(%d,%s):%s" % (self.order, self.color, super().__repr__())
+
+  def __hash__(self):
+    return hash(self.order)
+
+  def __eq__(self, other):
+    return self.order == other.order

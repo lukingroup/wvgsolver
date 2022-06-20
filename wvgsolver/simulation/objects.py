@@ -194,7 +194,7 @@ class UnitCell(SimulationObject):
 
 class Waveguide(SimulationObject):
   """This class represents a general waveguide structure"""
-  def __init__(self, structures=[], size=Vec3(1e6), engine=None, load_path=None, metadata=None):
+  def __init__(self, structures=[], size=Vec3(1e-6), engine=None, load_path=None, metadata=None):
     """
     Parameters
     ----------
@@ -230,7 +230,7 @@ class Waveguide(SimulationObject):
   def _getsize(self):
     return self._size
 
-  def _simulate_guidedness(self, sess, target_freq=400e12, bboxes={}, sim_size=Vec3(3, 4, 4), source_pos=-1, freq_span=0, sim_time=200e-15, source_size=3, TEonly=True):
+  def _simulate_guidedness(self, sess, target_freq=400e12, bboxes={}, simbbox=None, source_offset=0.5e-6, freq_span=0, freq_points=1, sim_time=200e-15, source_size=3, TEonly=True):
     """Simulates the guidedness of the cavity by using a mode source in the positive x direction and calculating 
     the transmission and reflection coefficients along the x axis. The sum of these coefficients indicates the 
     fraction of light from the mode source that remains guided along the x axis
@@ -244,19 +244,20 @@ class Waveguide(SimulationObject):
       a single BBox here will result in all 6 transmission monitors (2 for each axis) along the edges of that box. 
       Alternatively, you can specificy the boxes for specific axes by giving a dictionary with keys "x", "y", "z"
       and values being BBoxes. The default in any case is the simulation region.
+    simbbox : BBox or None
+      The explicit simulation bounding box. If None, use the waveguide size centered at 0.
     target_freq : float
       target frequency of the cavity simulation
-    sim_size : Vec3 or float
-      The size of the simulation region in units of the size of the cavity. A single float value 
-      corresponds to a vector whose all three elements are equal to that value.
-    source_pos : float
-      The x position of the mode source, in units of the x dimension of the cavity
+    source_offset : float
+      The x position offset of the mode source from the x min wall of bboxes["x"]
     freq_span : float
       The frequency span of the mode source
     sim_time : float
       The simulation time
     source_size : float or Vec3
       The size of the y and z dimensions of the mode source, in units of the size of the cavity in those dimensions
+    freq_points : int
+      The number of frequency points in the fourier transform of the transmission/reflection.
     TEonly : bool
       Whether or not to enforce TE only modes by applying an antisymmetric boundary condition along the y-axis.
 
@@ -267,11 +268,13 @@ class Waveguide(SimulationObject):
       The sum of the transmission and reflection coefficients across the whole simulation time along the 3 axes
     """
     size = self._getsize()
+    if simbbox is None:
+      simbbox = BBox(Vec3(0), Vec3(2, 4, 4)*size)
 
     tbboxes = {
-      "x": BBox(Vec3(0), size * sim_size),
-      "y": BBox(Vec3(0), size * sim_size),
-      "z": BBox(Vec3(0), size * sim_size)
+      "x": simbbox,
+      "y": simbbox,
+      "z": simbbox
     }
     if isinstance(bboxes, BBox):
       for a in tbboxes.keys():
@@ -280,29 +283,30 @@ class Waveguide(SimulationObject):
       for a, b in enumerate(bboxes):
         tbboxes[a] = b
 
-    sess.set_sim_region(size=bbox.size, boundaries={
+    sess.set_sim_region(size=simbbox.size, pos=simbbox.pos, boundaries={
       "ymin": "antisymmetric" if TEonly else "pml"
     })
     sess.set_sources(ModeSource(frange=(target_freq - freq_span * 0.5, target_freq + freq_span * 0.5),
-      pos=Vec3(source_pos * size.x, 0, 0), size=(size * source_size)))
+      pos=Vec3(tbboxes["x"].pos.x - tbboxes["x"].size.x/2 + source_offset, 0, 0), size=(size * source_size)))
     sess.set_sim_time(sim_time)
 
     analysis = {
-      "pxmin": Transmission(bboxes["x"], AXIS_X, -1, target_freq, freq_span),
-      "pxmax": Transmission(bboxes["x"], AXIS_X, 1, target_freq, freq_span),
-      "pymax": Transmission(bboxes["y"], AXIS_Y, 1, target_freq, freq_span),
-      "pzmin": Transmission(bboxes["z"], AXIS_Z, -1, target_freq, freq_span),
-      "pzmax": Transmission(bboxes["z"], AXIS_Z, 1, target_freq, freq_span),
+      "pxmin": Transmission(tbboxes["x"], AXIS_X, -1, target_freq, freq_span, freq_points),
+      "pxmax": Transmission(tbboxes["x"], AXIS_X, 1, target_freq, freq_span, freq_points),
+      "pymax": Transmission(tbboxes["y"], AXIS_Y, 1, target_freq, freq_span, freq_points),
+      "pzmin": Transmission(tbboxes["z"], AXIS_Z, -1, target_freq, freq_span, freq_points),
+      "pzmax": Transmission(tbboxes["z"], AXIS_Z, 1, target_freq, freq_span, freq_points),
     }
     if not TEonly:
-      analysis["pymin"] = Transmission(bboxes["y"], AXIS_Y, -1, target_freq, freq_span),
+      analysis["pymin"] = Transmission(tbboxes["y"], AXIS_Y, -1, target_freq, freq_span, freq_points),
 
     res = sess.run(analysis)
 
     return {
       "x": res["pxmax"] - res["pxmin"],
       "y": 2*res["pymax"] if TEonly else res["pymax"] - res["pymin"],
-      "z": res["pzmax"] - res["pzmin"]
+      "z": res["pzmax"] - res["pzmin"],
+      "ps": analysis
     }
 
   
@@ -515,7 +519,7 @@ class Cavity1D(Waveguide):
 
     bbox = BBox(Vec3(0), size * sim_size)
 
-    sess.set_sim_region(size=bbox.size, boundaries={
+    sess.set_sim_region(size=bbox.size * Vec3(1.2, 1, 1), boundaries={
       "ymin": "antisymmetric" if TEonly else "pml"
     })
     sess.set_sources(DipoleSource(f=target_freq, pulse_length=source_pulselength, pulse_offset=2.1*source_pulselength, pos=Vec3(0), axis=Vec3(0, 1, 0)))

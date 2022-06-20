@@ -102,7 +102,7 @@ class SimulationObject(ABC):
     """
     self._load_data(data)
     self._simulate_results = data["simulate_results"]
-    self.metadata = data["metadata"]
+    self.metadata = data["metadata"] if "metadata" in data else None
     for t in self._simulate_results:
       for r in self._simulate_results[t]:
         if "sess_res" in r:
@@ -228,13 +228,6 @@ class SimulationObject(ABC):
     func : callable
       The simulation function
     """
-
-    try:
-      self._check_sim_type(t)
-      
-      raise ValueError("A simulation of type '%s' is already defined" % t)
-    except NotImplementedError:
-      pass
 
     setattr(self, "_simulate_" + t, lambda *args, **kwargs: func(self, *args, **kwargs))
       

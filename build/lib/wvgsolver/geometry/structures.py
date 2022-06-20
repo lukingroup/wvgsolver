@@ -2,6 +2,7 @@ from .base import Structure
 import numpy as np
 import shapely
 import trimesh
+import matplotlib
 
 class PolygonStructure(Structure):
   """Represents a 2D polygon extruded along the z axis into a 3D structure, then rotated and placed at a particular location."""
@@ -34,8 +35,32 @@ class PolygonStructure(Structure):
     return trimesh.creation.extrude_polygon(
       polygon=shapely.geometry.Polygon(np.array(self.verts) / scale), 
       height=(self.height / scale),
-      transform=trimesh.transformations.translation_matrix([0, 0, -self.height / (2 * scale)])
+      transform=trimesh.transformations.translation_matrix([0, 0, -self.height/(2*scale)])
     )
+
+  def contains(self, points, scale=1e-6):
+    rot_transform = trimesh.transformations.euler_matrix(*self.rot_angles, axes="szyx")
+    if np.allclose(rot_transform, np.eye(4)):
+      tpoints = points - (self.pos / scale).tolist()
+    else:
+      trans_transform = trimesh.transformations.translation_matrix((self.pos / scale).tolist())
+      transform = np.linalg.inv(trans_transform @ rot_transform)
+      wpoints = np.concatenate((points, np.ones((points.shape[0], 1))), axis=-1)
+      tpoints = (transform @ wpoints.T).T[:,:3]
+
+    verts = np.array(self.verts) / scale
+    bounds = [[np.min(verts[:,0]), np.min(verts[:,1])], [np.max(verts[:,0]), np.max(verts[:,1])]]
+
+    X = tpoints[:,0]
+    Y = tpoints[:,1]
+    Z = tpoints[:,2]
+
+    mask = (X > bounds[0][0]) & (X < bounds[1][0]) & (Y > bounds[0][1]) & (Y < bounds[1][1])
+    mask[mask] = (
+      matplotlib.path.Path(verts).contains_points(tpoints[:,0:2][mask]) & \
+      (np.abs(Z[mask]) < self.height/(2*scale))
+    )
+    return mask
 
   def __repr__(self): 
     return "PolygonStructure(%d,%s,%.6e,%s):%s" % (len(self.verts), self.rot_angles, self.height, self.material, super().__repr__())

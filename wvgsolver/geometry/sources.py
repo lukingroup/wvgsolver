@@ -1,8 +1,13 @@
 from .base import Source
 from ..utils.constants import AXIS_X, AXIS_Y, AXIS_Z
 from ..utils.linalg import Vec3, axis_to_spherical
+from ..utils.meep import U_F, U_A
 import numpy as np
 import math
+try:
+  import meep as mp
+except:
+  pass
 
 class DipoleSource(Source):
   def __init__(self, frange=None, f=None, pulse_length=None, pulse_offset=None, pos=Vec3(0.0), axis=Vec3(0.0, 0.0, 1.0), phase=0.0):
@@ -15,6 +20,19 @@ class DipoleSource(Source):
 
     dipole = session.fdtd.adddipole(theta=theta, phi=phi, phase=180*self.phase/np.pi)
     self._config_freq_lumerical(dipole)
+
+  def _add_eff1d(self, session):
+    if self.frange is not None:
+      frange = self.frange
+    else:
+      width = 2/self.pulse_length
+      frange = [self.f - width/2, self.f + width/2]
+
+    return mp.Source(
+      mp.GaussianSource(frequency=(frange[0] + frange[1])/(2*U_F), width=(frange[1] - frange[0])/U_F),
+      component=mp.Ex,
+      center=mp.Vector3(z=self.pos.x/U_A)
+    )
 
 # Only supports fundamental mode for now
 class ModeSource(Source):

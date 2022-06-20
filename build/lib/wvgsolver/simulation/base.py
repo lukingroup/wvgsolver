@@ -2,6 +2,7 @@ import uuid
 from abc import ABC, abstractmethod
 from ..utils.misc import hasmethod
 from ..engine import getDefaultEngine
+from collections import Counter
 import pickle
 import copy
 import datetime
@@ -20,7 +21,7 @@ class SimulationObject(ABC):
   parameters (structures, unit cells, etc). This ensures that all the simulation results associated with
   a particular instance of a SimulationObject come from simulating the same object.
   """
-  def __init__(self, engine=None, load_path=None):
+  def __init__(self, engine=None, load_path=None, metadata=None):
     """
     Parameters
     ----------
@@ -30,6 +31,8 @@ class SimulationObject(ABC):
     load_path : str or None
       The file path to load this object from. If this parameter is not None, then the object from
       that file is loaded and you are not expected to modify the object further
+    metadata : any
+      Any associated metadata
     """
     if engine is None:
       engine = getDefaultEngine()
@@ -39,6 +42,7 @@ class SimulationObject(ABC):
     self._default_sim_type = ""
     self._no_sess_sims = []
     self.save_path = load_path
+    self.metadata = metadata
 
     if load_path is not None:
       self.load(load_path)
@@ -78,6 +82,7 @@ class SimulationObject(ABC):
     """
     data = self._save_data()
     data["simulate_results"] = {}
+    data["metadata"] = copy.copy(self.metadata)
     for t in self._simulate_results:
       data["simulate_results"][t] = []
       for r in self._simulate_results[t]:
@@ -97,20 +102,25 @@ class SimulationObject(ABC):
     """
     self._load_data(data)
     self._simulate_results = data["simulate_results"]
+    self.metadata = data["metadata"] if "metadata" in data else None
     for t in self._simulate_results:
       for r in self._simulate_results[t]:
         if "sess_res" in r:
           r["sess_res"].set_engine(self.engine)
 
-  def save(self, fpath):
+  def save(self, fpath=None):
     """Save this object to a file path. The object then keeps track of this file path and re-saves
     itself to that file after every simulation
 
     Parameters
     ----------
     fpath : str
+      The file path to save to. If None, attempts to use the previously set file path
     """
-    self.save_path = fpath
+    if fpath is not None:
+      self.save_path = fpath
+    elif self.save_path is None:
+      raise ValueError("No save path set, please provide one")
     pickle.dump(self.save_data(), open(self.save_path, "wb"))
   
   def load(self, fpath):
@@ -182,8 +192,6 @@ class SimulationObject(ABC):
     if sim_type is None:
       return self._simulate_results
   
-    self._check_sim_type(sim_type)
-
     if not sim_type in self._simulate_results:
       return []
     if not kwargs:
@@ -208,6 +216,21 @@ class SimulationObject(ABC):
       res = filter(lambda r: r["status"] == status, res)
 
     return res
+
+  def add_simulation(self, t, func):
+    """Adds a custom simulation.
+
+    Parameters
+    ----------
+    t : str
+      The simulation type being added. Can by any string representing a short 1-word or so 
+      description of the simuation
+    func : callable
+      The simulation function
+    """
+
+    setattr(self, "_simulate_" + t, lambda *args, **kwargs: func(self, *args, **kwargs))
+      
 
   def simulate(self, t=None, save=True, mesh_regions=[], **kwargs):
     """This is the main function that is called to run a simulation.
@@ -277,3 +300,6 @@ class SimulationObject(ABC):
       raise err
 
     return res
+
+  def eq_structs(self, other, sim_type=None):
+    return Counter(self.get_structures(sim_type)) == Counter(other.get_structures(sim_type))
