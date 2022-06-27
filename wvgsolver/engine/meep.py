@@ -144,7 +144,7 @@ class EffIndex1DSession(Session):
 
     eps_r = eps[np.abs(grid_axes[0] - self.engine.reference_point/U_A).argmin(),:,:]
     neff, mode = self._compute_mode(self.engine.mode_f/U_F, self.engine.mode_index, grid_axes[1], grid_axes[2], eps_r)
-    self.engine.last_mode = neff, mode.T
+    self.engine.last_mode = neff, np.flip(mode.T, axis=0)
   
     return np.real(neff**2 + np.sum((eps - np.expand_dims(eps_r, 0))*np.expand_dims(mode, 0), axis=(1, 2)))
 
