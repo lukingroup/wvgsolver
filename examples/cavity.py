@@ -32,7 +32,7 @@ cavity = Cavity1D(
 )
 
 # By setting the save path here, the cavity will save itself after each simulation to this file
-# cavity.save("cavity.obj")
+cavity.save("cavity.obj")
 
 r3 = cavity.simulate("guidedness", target_freq=target_frequency)
 r1 = cavity.simulate("resonance", target_freq=target_frequency)
@@ -46,7 +46,7 @@ print("F: %f, Vmode: %f, Qwvg: %f, Qsc: %f" % (
 r1["xyprofile"].show()
 r1["yzprofile"].show()
 
-r2 = cavity.simulate("quasipotential", target_freq=target_frequency)
+r2 = cavity.simulate("quasipotential", target_freq=target_frequency, k=0.47)
 
 # Plot the quasipotential
 r2.show()

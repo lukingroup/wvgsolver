@@ -15,9 +15,9 @@ cavity = Cavity1D(load_path="cavity.obj", engine=engine)
 res = cavity.get_results("resonance", started_after=datetime.datetime(2021, 4, 20))
 
 # Filter any failed results out
-res = filter(res, lambda r : r["stats"] == "succeeded")
+res = list(filter(lambda r : (r["status"] == "succeeded"), res))
 
-if len(r):
+if len(res):
   # Take the latest result
   r = res[-1]
 

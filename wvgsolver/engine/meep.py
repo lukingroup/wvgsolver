@@ -144,6 +144,9 @@ class EffIndex1DSession(Session):
 
     eps_r = eps[np.abs(grid_axes[0] - self.engine.reference_point/U_A).argmin(),:,:]
     neff, mode = self._compute_mode(self.engine.mode_f/U_F, self.engine.mode_index, grid_axes[1], grid_axes[2], eps_r)
+
+    plt.imshow(np.flip(eps_r.T, axis=0))
+#    plt.show()
     self.engine.last_mode = neff, np.flip(mode.T, axis=0)
   
     return np.real(neff**2 + np.sum((eps - np.expand_dims(eps_r, 0))*np.expand_dims(mode, 0), axis=(1, 2)))
@@ -174,18 +177,26 @@ class EffIndex1DSession(Session):
     )
 
   def _runsim(self):
-    regions = sorted(self.analyze_regions, key=lambda r: r["time"])
+    regions = sorted(
+      [ (r, r["time"], "add", i) for i, r in enumerate(self.analyze_regions) ] + \
+      [ (r, r["rtime"], "remove", i) for i, r in enumerate(self.analyze_regions) ],
+      key=lambda r: r[1])
+    objs = {}
     last_t = 0
     for r in regions:
-      t = r["time"]
+      t = r[1]
       self.sim.run(until=(t - last_t))
-      obj = None
-      if r["type"] == "flux":
-        obj = self.sim.add_flux(*r["args"], **r["kwargs"])
-      elif r["type"] == "energy":
-        obj = self.sim.add_energy(*r["args"], **r["kwargs"])
+      if r[2] == "add":
+        obj = None
+        if r[0]["type"] == "flux":
+          obj = self.sim.add_flux(*r[0]["args"], **r[0]["kwargs"])
+        elif r[0]["type"] == "energy":
+          obj = self.sim.add_energy(*r[0]["args"], **r[0]["kwargs"])
+        objs[r[3]] = obj
+        r[0]["callback"](obj)
+      elif r[2] == "remove":
+        self.sim.dft_objects.remove(objs[r[3]])
       last_t = t
-      r["callback"](obj)
 
     self.sim.run(until=(self.sim_time - last_t))
 

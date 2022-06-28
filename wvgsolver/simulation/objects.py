@@ -305,8 +305,7 @@ class Waveguide(SimulationObject):
     return {
       "x": res["pxmax"] - res["pxmin"],
       "y": 2*res["pymax"] if TEonly else res["pymax"] - res["pymin"],
-      "z": res["pzmax"] - res["pzmin"],
-      "ps": analysis
+      "z": res["pzmax"] - res["pzmin"]
     }
 
   
@@ -464,7 +463,7 @@ class Cavity1D(Waveguide):
     return Quasipotential(output)
 
   def _simulate_resonance(self, sess, target_freq=400e12, source_pulselength=60e-15, analyze_fspan=3e14, \
-      analyze_time=590e-15, TEonly=True, sim_size=Vec3(2, 4, 4), energy_downsample=2):
+      analyze_time=590e-15, eref_time=80e-15, TEonly=True, sim_size=Vec3(2, 4, 4), energy_downsample=2):
     """Simulate the cavity's resonance frequency and obtain directional Q factors, mode volume, and 
     electric field profile data. The simulation comprises of one dipole polarized along the y-axis
     in the center of the cavity, and all simulation results are calculated in the last 20 fs 
@@ -485,6 +484,10 @@ class Cavity1D(Waveguide):
     analyze_time : float
       The time, in seconds, to simulation for before performing analysis. The total simulation time
       is a few dozens of femtoseconds greater than this
+    eref_time : float
+      The time, in seconds, at which to calculate the total energy in the cavity when determining
+      the initial energy of the dipole pulse. This is then used to see how much energy is retained
+      by the cavity.
     TEonly : bool
       Whether or not to enforce TE only modes by applying an antisymmetric boundary condition along the y-axis.
     sim_size : Vec3 or float
@@ -506,6 +509,7 @@ class Cavity1D(Waveguide):
         "qzmin": float,
         "qzmax": float,
         "vmode": float,
+        "eremain": float,
         "xyprofile": Plotable EField object,
         "yzprofile": Plotable EField object
       }
@@ -513,6 +517,7 @@ class Cavity1D(Waveguide):
       "vmode" is the volume of the cavity mode normalized to the cube of the resonance frequency,
       "xyprofile" and "yzprofile" are the electric field profiles in two planes that slice through 
       the center of the cavity, the first being along the x and y axes and the second along y and z.
+      Finally, "eremain" is the approximate fraction of energy remaining in the simuation at the end.
     """
     size = self._getsize()
     analyze_frange = (target_freq - analyze_fspan / 2, target_freq + analyze_fspan / 2)
@@ -530,6 +535,7 @@ class Cavity1D(Waveguide):
     spectrum_freqs = np.linspace(analyze_frange[0], analyze_frange[1], 100000)
     analysis = {
       "res": FrequencySpectrum(BBox(bbox.pos, size*Vec3(0.3, 0, 0)), spectrum_freqs),
+      "eref": WaveEnergy(bbox, target_freq, eref_time, energy_downsample),
       "e": WaveEnergy(bbox, target_freq, st, energy_downsample),
       "pxmin": SideWavePower(bbox, AXIS_X, -1, st, target_freq),
       "pxmax": SideWavePower(bbox, AXIS_X, 1, st, target_freq),
@@ -548,6 +554,7 @@ class Cavity1D(Waveguide):
     freq = spectrum_freqs[np.argmax(res)]
 
     e, edensity, index_x,_,_ = sess.analyze("e", freq = freq)
+    eref,_,_,_,_ = sess.analyze("eref", freq = freq)
 
     vmode = (e / edensity) / (C_LIGHT / (freq * index_x))**3
 
@@ -569,6 +576,7 @@ class Cavity1D(Waveguide):
       "qzmin": qzmin,
       "qzmax": qzmax,
       "vmode": vmode,
+      "eremain": e / eref,
       "xyprofile": EField(xyprofile, ("x", "y")),
       "yzprofile": EField(yzprofile, ("y", "z"))
     }

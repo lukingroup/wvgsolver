@@ -67,6 +67,7 @@ class WaveEnergy(Analysis):
     self.bbox = bbox
     self.target_freq = target_freq
     self.start_time = start_time
+    self.stop_time = start_time + 3 / target_freq
     self.downsample = downsample
 
     self.time_monitor = randstring()
@@ -81,8 +82,7 @@ class WaveEnergy(Analysis):
     time.z_span = self.bbox.size.z
     time.stop_method = 2
     time.start_time = self.start_time
-    # Allow for one period
-    time.stop_time = self.start_time + 2 / self.target_freq
+    time.stop_time = self.stop_time
 
     index = sess.fdtd.addindex(name=self.index_monitor, monitor_type=4, x=self.bbox.pos.x, y=self.bbox.pos.y,
       z=self.bbox.pos.z, down_sample_X=self.downsample, down_sample_Y=self.downsample, down_sample_Z=self.downsample, use_source_limits=True)
@@ -145,6 +145,7 @@ class WaveEnergy(Analysis):
   def _setup_eff1d(self, sess):
     self.region = {
       "time": self.start_time/U_T,
+      "rtime": self.stop_time/U_T,
       "type": "energy",
       "args": (self.target_freq/U_F, 0, 1, mp.EnergyRegion(
         center=mp.Vector3(z=self.bbox.pos.x/U_A),
@@ -274,6 +275,7 @@ class SideWavePower(Analysis):
     self.axis = axis
     self.side = side
     self.start_time = start_time
+    self.stop_time = start_time + 3/target_freq
     self.target_freq = target_freq
     self.monitor_name = randstring()
 
@@ -288,7 +290,7 @@ class SideWavePower(Analysis):
        output_Hy=False, output_Hz=False, output_Ez=False, output_power=True)
     time.stop_method = 2
     time.start_time = self.start_time
-    time.stop_time = self.start_time + 1/self.target_freq
+    time.stop_time = self.stop_time 
     
     if self.axis == AXIS_X:
       time.x = time.x + self.side * self.bbox.size.x / 2
@@ -320,6 +322,7 @@ class SideWavePower(Analysis):
 
     self.region = {
       "time": self.start_time/U_T,
+      "rtime": self.stop_time/U_T, 
       "type": "flux",
       "args": (self.target_freq/U_F, 0, 1, mp.FluxRegion(
         center=mp.Vector3(z=(self.bbox.pos.x + self.side*self.bbox.size.x/2)/U_A),
