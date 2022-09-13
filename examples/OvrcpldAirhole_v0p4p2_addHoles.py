@@ -13,6 +13,11 @@ from wvgsolver.parse import DielectricExtrusionFaceGDSParser, ObjectParser3D
 import numpy as np
 import os
 
+#  Initialize Lumerical File Locations
+FDTDLoc = '/n/home08/eknall/sw_ENK/lumerical-2021-R2-2717-7bf43e7149_seas'
+FDTDexeLoc = os.path.join(FDTDLoc,'bin/fdtd-solutions')
+FDTDmpiLoc = os.path.join(FDTDLoc,'bin/fdtd-engine-ompi-lcl')
+
 
 hole_radii = np.loadtxt(os.path.join(os.path.curdir, 'examples/v0p4p2/holeStruct.txt'), dtype=float, usecols=(0,1), unpack=False)
 hole_radii /= 2
@@ -31,7 +36,7 @@ beam_length = 15e-6
 target_frequency = 406.774e12
 
 # Use level 4 automeshing accuracy, and show the Lumerical GUI while running simulations
-engine = LumericalEngine(mesh_accuracy=5, hide=False)
+engine = LumericalEngine(mesh_accuracy=5, hide=True, lumerical_path=FDTDLoc, working_path="./fsps")
 # engine = LumericalEngine(mesh_accuracy=6, hide=False, working_path="./fsps")
 
 unit_cells = []
