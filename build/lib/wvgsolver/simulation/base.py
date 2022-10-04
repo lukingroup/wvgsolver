@@ -215,7 +215,7 @@ class SimulationObject(ABC):
     if status is not None:
       res = filter(lambda r: r["status"] == status, res)
 
-    return res
+    return list(res)
 
   def add_simulation(self, t, func):
     """Adds a custom simulation.

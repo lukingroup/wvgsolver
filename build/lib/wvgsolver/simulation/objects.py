@@ -305,8 +305,7 @@ class Waveguide(SimulationObject):
     return {
       "x": res["pxmax"] - res["pxmin"],
       "y": 2*res["pymax"] if TEonly else res["pymax"] - res["pymin"],
-      "z": res["pzmax"] - res["pzmin"],
-      "ps": analysis
+      "z": res["pzmax"] - res["pzmin"]
     }
 
   
@@ -394,8 +393,7 @@ class Cavity1D(Waveguide):
       xsize = c.get_size().x
       for s in c.get_structures():
         copy_s = s.copy()
-        copy_s.pos = Vec3(offset)
-        copy_s.pos.x += xsize / 2
+        copy_s.pos += offset + Vec3(xsize/2, 0, 0)
         structs.append(copy_s)
 
       if i <= center_cell:

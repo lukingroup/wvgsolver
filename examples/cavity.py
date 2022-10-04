@@ -17,7 +17,7 @@ beam_length = 10e-6
 target_frequency = 400e12
 
 # Use level 4 automeshing accuracy, and show the Lumerical GUI while running simulations
-engine = LumericalEngine(mesh_accuracy=1, hide=False)
+engine = LumericalEngine(mesh_accuracy=1, hide=False, working_path="./fsps/")
 
 cell_box = BoxStructure(Vec3(0), Vec3(cell_size), DielectricMaterial(2, order=2, color="red"))
 cell_hole = CylinderStructure(Vec3(0), cell_size, hole_radius, DielectricMaterial(1, order=1, color="blue"))

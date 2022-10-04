@@ -101,9 +101,19 @@ class EffIndex1DSession(Session):
     b2, s = eigs(P, k=(midx+1), which="LR")
 
     neff = np.sqrt(b2[-1]) / k0
+    
     s = np.abs(s[:,-1].reshape((2, x.shape[0], y.shape[0])))**2
-    s = np.sum(s, axis=0) / np.sum(s)
-    return neff, s
+    st = np.sum(s, axis=0)
+    sumt = np.sum(st)
+    eyf = np.sum(s[1,:,:]) / sumt
+    st /= sumt
+    
+#    print("eyf:", eyf)
+#    print(neff)
+#    plt.imshow(np.abs(np.flip(s[:,-1].reshape((2, x.shape[0], y.shape[0]))[0,:,:].T, axis=0)))
+#    plt.show()
+
+    return neff, st, eyf
     
   def _compute_epsilons(self):
     nmesh = self.cell_size / (self.engine.resolution/U_A)
@@ -143,16 +153,16 @@ class EffIndex1DSession(Session):
         grid_axes[i] = np.concatenate((-np.flip(grid_axes[i])[:-1], grid_axes[i]))
 
     eps_r = eps[np.abs(grid_axes[0] - self.engine.reference_point/U_A).argmin(),:,:]
-    neff, mode = self._compute_mode(self.engine.mode_f/U_F, self.engine.mode_index, grid_axes[1], grid_axes[2], eps_r)
+    neff, mode, ey_frac = self._compute_mode(self.engine.mode_f/U_F, self.engine.mode_index, grid_axes[1], grid_axes[2], eps_r)
 
-    plt.imshow(np.flip(eps_r.T, axis=0))
-#    plt.show()
-    self.engine.last_mode = neff, np.flip(mode.T, axis=0)
+    self.engine.last_mode = neff, np.flip(mode.T, axis=0), ey_frac
   
     return np.real(neff**2 + np.sum((eps - np.expand_dims(eps_r, 0))*np.expand_dims(mode, 0), axis=(1, 2)))
 
   def _prerun(self):
     epsilons = self._compute_epsilons()
+
+#    np.save("epsilons.npy", epsilons)
 
     geometry = [
       mp.Block(
