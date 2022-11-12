@@ -7,3 +7,4 @@ phidl
 PyQt5
 pyglet
 matplotlib
+findiff
