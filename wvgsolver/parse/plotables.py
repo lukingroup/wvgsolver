@@ -105,9 +105,48 @@ class EField(Parser):
     return (x[max_index[0]],y[max_index[1]])
     
 
-  def save(self, fpath):
-    # TODO: Implement
-    pass
+  def save(self, fpath, title=None, ncontours=1):
+    """Plots the profile in 4 graphs, one for each of the x, y, and z components of the
+    electric field, and one for the magnitude of the field. This also overlays a contour
+    graph of the index of refraction of the cavity to show where in the geometry the field is 
+    concentrated. Saves the plots to the specified fpath and does not display them.
+
+    Parameters
+    ----------
+    fpath : str 
+      Filepath where the plots are saved
+    title : str or None
+      If provided, override the default title for the plot
+    ncontours : int
+      Number of contour lines used in the index of refraction contour plot
+    """
+    xlabel = self.meta[0]
+    ylabel = self.meta[1]
+
+    if title is None:
+      title = "Electric field " + (xlabel + ylabel).upper() + " density profile"
+    
+    Ex, Ey, Ez, x, y, index = self.data
+    E = Ex+ Ey + Ez
+    fig, axs = plt.subplots(2, 2)
+    fig.set_size_inches(9,6)
+    for cname, data, ax in [
+        ("Ex", Ex, axs[0,0]), ("Ey", Ey, axs[0,1]), ("Ez", Ez, axs[1,0]), ("E", E, axs[1,1])
+      ]:
+      c = ax.pcolormesh(x, y, np.transpose(data))
+      ax.contour(x, y, np.transpose(index), ncontours, colors="black", linewidths=0.5)
+      plt.colorbar(c, ax=[ax], location="left")
+
+      ax.set_xlabel(xlabel)
+      ax.set_ylabel(ylabel)
+      ax.set_aspect("equal")
+      ax.get_yaxis().set_ticks_position("right")
+      ax.get_yaxis().set_label_position("right")
+      ax.set_title("(" + cname + ")")
+
+    fig.suptitle(title, fontsize = 12)
+    plt.savefig(fpath,dpi=500)
+  
     
 class Quasipotential(Parser):
   """Holds the result of a quasipotential simulation"""
