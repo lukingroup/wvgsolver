@@ -393,7 +393,7 @@ class Cavity1D(Waveguide):
       xsize = c.get_size().x
       for s in c.get_structures():
         copy_s = s.copy()
-        copy_s.pos = Vec3(offset)
+        copy_s.pos = Vec3(offset) + copy_s.pos
         copy_s.pos.x += xsize / 2
         structs.append(copy_s)
 
