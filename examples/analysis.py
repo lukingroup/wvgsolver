@@ -10,10 +10,7 @@ import sys
 import os
 
 #  Initialize Lumerical File Locations
-FDTDLoc = '/n/home08/eknall/sw_ENK/lumerical-2021-R2-2717-7bf43e7149_seas'
-FDTDexeLoc = os.path.join(FDTDLoc,'bin/fdtd-solutions')
-FDTDmpiLoc = os.path.join(FDTDLoc,'bin/fdtd-engine-ompi-lcl')
-
+FDTDLoc = '/n/sw/lumerical-2021-R2-2717-7bf43e7149_seas'
 
 engine = LumericalEngine(lumerical_path=FDTDLoc)
 
@@ -39,5 +36,8 @@ if len(res):
 
   # Let's open the Lumerical FSP file used for this simulation
   r["sess_res"].show()
-  r["xyprofile"].show()
-  r["yzprofile"].show()
+  r["res"]["xyprofile"].show()
+  r["res"]["yzprofile"].show()
+
+
+  r["res"]["xyprofile"].save("temp_xy.png")

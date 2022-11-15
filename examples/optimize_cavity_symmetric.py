@@ -15,9 +15,6 @@ import sividl.sividl_devices as sivp
 
 #  Initialize Lumerical File Locations
 FDTDLoc = '/n/sw/lumerical-2021-R2-2717-7bf43e7149_seas'
-FDTDexeLoc = os.path.join(FDTDLoc,'bin/fdtd-solutions')
-FDTDmpiLoc = os.path.join(FDTDLoc,'bin/fdtd-engine-ompi-lcl')
-print(FDTDexeLoc)
 iter_count = 0
 nmirrs = 3
 ndefs = 4
@@ -123,7 +120,6 @@ def build_cavity(cavity_params):
 
     # Use level 5 automeshing accuracy and save the unsolved fsp file with the .obj file
     engine = LumericalEngine(mesh_accuracy=5, hide=hide, lumerical_path=FDTDLoc, save_fsp=True)
-    #engine = LumericalEngine(mesh_accuracy=5, hide=hide, save_fsp=True)
 
     cavity_cells = []
     for hx, hy, a in zip(all_hx, all_hy, all_a):
@@ -133,7 +129,6 @@ def build_cavity(cavity_params):
                                 DielectricMaterial(2.4028, order=2, color="blue"), 
                                 rot_angles=(np.pi/2, np.pi/2, 0))
 
-        #cell_box = BoxStructure(Vec3(0), cell_size, DielectricMaterial(n_beam, order=2, color="blue"))
         # offset the hole to respect the way we define the relevant lattice constant
         cell_hole = CylinderStructure(Vec3(-a/2,0,0), beam_h, hx/2, DielectricMaterial(1, order=1, color="red"), radius2=hy/2)
         unit_cell = UnitCell(structures = [cell_box, cell_hole], size=cell_size, engine=engine)
@@ -222,25 +217,15 @@ def fitness(cavity_params):
 
     return witness
 
-log_name = f"optimization_111422_00/optimal_sym-{nmirrs}-{ndefs}-{nmirrs}_111422_00.txt"
+log_name = f"optimization_111522_00/optimal_sym-{nmirrs}-{ndefs}-{nmirrs}_111522_00.txt"
 p0 = np.array([0.125,1.95,0.48,0.60,0.252])
 bounds = ((0.08,0.18),(1.0,2.2),(0.25,0.7),(0.25,0.7),(0.200,0.300))
 #maxDef, beam_w, hx, hy, aLR
 
 
 with open(log_name, "ab") as f:
-    f.write(b"maxDef    beam_w    hx    hy    a    fitness    wavelen_pen    purcell    qxmin    qxmax    qscat    qtot    vmode    vmode_copy    freq")
+    f.write(b"maxDef    beam_w    hx      hy        a         fitness    wavelen_pen  purcell       qxmin      qxmax      qscat      qtot      vmode    vmode_copy       freq")
 
 
 popt = minimize(fitness,p0,bounds = bounds,method='Nelder-Mead')
 print(popt)
-# Print the reults and plot the electric field profiles
-#print("F: %f, Vmode: %f, Qwvg: %f, Qsc: %f" % (
-#  r1["freq"], r1["vmode"],
-#  1/(1/r1["qxmin"] + 1/r1["qxmax"]),
-#  1/(2/r1["qymax"] + 1/r1["qzmin"] + 1/r1["qzmax"])
-#))
-
-
-
-#print("Guidedness: %s" % r3)
