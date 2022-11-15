@@ -576,7 +576,7 @@ class Cavity1D(Waveguide):
       "qzmin": qzmin,
       "qzmax": qzmax,
       "vmode": vmode,
-      "eremain": e / eref,
+      "eremain": e,
       "xyprofile": EField(xyprofile, ("x", "y")),
       "yzprofile": EField(yzprofile, ("y", "z"))
     }

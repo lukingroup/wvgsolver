@@ -141,6 +141,10 @@ class WaveEnergy(Analysis):
   
   def set_resobj(self, En):
     self.En = En
+    #self.En = val.field_energy_in_box(
+    #  center=mp.Vector3(z=self.bbox.pos.x/U_A),
+    #  size=mp.Vector3(z=self.bbox.size.x/U_A)
+    #)
 
   def _setup_eff1d(self, sess):
     self.region = {
@@ -155,6 +159,10 @@ class WaveEnergy(Analysis):
       "callback": self.set_resobj
     }
     sess.add_analyze_region(self.region)
+    #sess.add_analyze_func({
+    #  "time": self.start_time/U_T,
+    #  "func": self.set_resobj
+    #})
   
   def _cleanup_eff1d(self, sess):
     sess.remove_analyze_region(self.region)
@@ -408,13 +416,55 @@ class Transmission(Analysis):
       return sess.fdtd.getv("Tf")
   
   def _setup_eff1d(self, sess):
-    pass
+    if self.axis != AXIS_X:
+      return
+
+    self.regions = [{
+      "time": 0,
+      "rtime": -1, 
+      "type": "flux",
+      "args": (self.target_freq/U_F, 0, 1, mp.FluxRegion(
+        center=mp.Vector3(z=(self.bbox.pos.x - self.bbox.size.x/2)/U_A),
+        size=mp.Vector3()
+      )),
+      "kwargs": {},
+      "callback": self.set_resobj1
+    },{
+      "time": 0,
+      "rtime": -1, 
+      "type": "flux",
+      "args": (self.target_freq/U_F, 0, 1, mp.FluxRegion(
+        center=mp.Vector3(z=(self.bbox.pos.x + self.bbox.size.x/2)/U_A),
+        size=mp.Vector3()
+      )),
+      "kwargs": {},
+      "callback": self.set_resobj2
+    }]
+    for r in self.regions:
+      sess.add_analyze_region(r)
+
+  def set_resobj1(self, F):
+    self.F1 = F
+  
+  def set_resobj2(self, F):
+    self.F2 = F
   
   def _cleanup_eff1d(self, sess):
-    pass
+    if hasattr(self, "regions"):
+      for r in self.regions:
+        sess.remove_analyze_region(r)
+      del self.regions
   
   def _analyze_eff1d(self, sess):
-    pass
+    if not hasattr(self, "F1") or not hasattr(self, "F2"):
+      return 0
+    f1 = mp.get_fluxes(self.F1)[0]
+    f2 = mp.get_fluxes(self.F2)[0]
+    print(f1, f2)
+    del self.F1, self.F2
+    if self.side == 1:
+      return U_F*f2 / (f2 - f1/2)
+    return -U_F*(f1/2) / (f2 - f1/2)
 
 class Fields(Analysis):
   def __init__(self, bbox, ndims=2, axis=AXIS_Z, start_time=0, downsample=1):

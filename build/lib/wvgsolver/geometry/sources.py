@@ -65,3 +65,16 @@ class ModeSource(Source):
       mode.x_span = self.size.x
       mode.y_span = self.size.y
   
+  def _add_eff1d(self, session):
+    if self.frange is not None:
+      frange = self.frange
+    else:
+      width = 2/self.pulse_length
+      frange = [self.f - width/2, self.f + width/2]
+
+    return mp.Source(
+      mp.GaussianSource(frequency=(frange[0] + frange[1])/(2*U_F), width=(frange[1] - frange[0])/U_F),
+      center=mp.Vector3(z=self.pos.x/U_A),
+      component=mp.Ex
+    )
+  

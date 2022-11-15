@@ -10,6 +10,7 @@ from scipy.sparse.linalg import eigs
 from scipy.sparse import diags, eye, bmat
 import matplotlib.pyplot as plt
 import trimesh
+from findiff import FinDiff
 
 class EffIndex1DSession(Session):
   def __init__(self, engine):
@@ -21,6 +22,7 @@ class EffIndex1DSession(Session):
     self.sim_time = 1
     self.sim = None
     self.analyze_regions = []
+    self.analyze_funcs = []
     self.symmetric_axes = []
 
   def _set_structures(self, structures):
@@ -37,6 +39,12 @@ class EffIndex1DSession(Session):
   
   def remove_analyze_region(self, region):
     self.analyze_regions.remove(region)
+  
+  def add_analyze_func(self, func):
+    self.analyze_funcs.append(func)
+  
+  def remove_analyze_func(self, func):
+    self.analyze_funcs.remove(func)
 
   def close(self):
     pass
@@ -61,6 +69,50 @@ class EffIndex1DSession(Session):
 
   def set_sim_time(self, t):
     self.sim_time = t/U_T
+
+  def _compute_mode_novec1(self, f, midx, x, y, eps):
+    dx = x[1] - x[0]
+    dy = y[1] - y[0]
+    Nx = x.shape[0]
+    Ny = y.shape[0]
+
+    X, Y = np.meshgrid(x, y)
+
+    k0 = 2*np.pi*f
+
+    H = FinDiff(0, dx, 2).matrix((Nx, Ny)) + FinDiff(1, dy, 2).matrix((Nx, Ny)) + k0**2*diags(eps.reshape(Nx*Ny))
+
+    b2, s = eigs(H, k=(midx+1), which="LR")
+
+    neff = np.sqrt(b2[-1]) / k0
+    
+    st = np.abs(s[:,-1].reshape((Nx, Ny)))**2
+    sumt = np.sum(st)
+    st /= sumt
+    
+    return neff, st
+  
+  def _compute_mode_novec2(self, f, midx, x, y, eps, n0=2.4):
+    dx = x[1] - x[0]
+    dy = y[1] - y[0]
+    Nx = x.shape[0]
+    Ny = y.shape[0]
+
+    X, Y = np.meshgrid(x, y)
+
+    k0 = 2*np.pi*f
+
+    H = (FinDiff(0, dx, 2).matrix((Nx, Ny)) + FinDiff(1, dy, 2).matrix((Nx, Ny)))/(2*k0*n0) + (k0/(2*n0))*diags(eps.reshape(Nx*Ny))
+
+    E, s = eigs(H, k=(midx+1), which="LR")
+
+    neff = (E[-1] + k0*n0/2) / k0
+    
+    st = np.abs(s[:,-1].reshape((Nx, Ny)))**2
+    sumt = np.sum(st)
+    st /= sumt
+    
+    return neff, st
 
   def _compute_mode(self, f, midx, x, y, eps):
     dx = x[1] - x[0]
@@ -100,10 +152,26 @@ class EffIndex1DSession(Session):
 
     b2, s = eigs(P, k=(midx+1), which="LR")
 
+    s = s[:,-1].reshape((2, x.shape[0], y.shape[0]))
+    s = np.stack([
+      np.concatenate([(s[0,:,:-1] + s[0,:,1:])/2, np.zeros((s.shape[1], 1))], axis=1),
+      np.concatenate([(s[1,:-1,:] + s[1,1:,:])/2, np.zeros((1, s.shape[2]))], axis=0)
+    ], axis=0)
+
     neff = np.sqrt(b2[-1]) / k0
-    s = np.abs(s[:,-1].reshape((2, x.shape[0], y.shape[0])))**2
-    s = np.sum(s, axis=0) / np.sum(s)
-    return neff, s
+    
+    s = np.abs(s)**2
+    st = np.sum(s, axis=0)
+    sumt = np.sum(st)
+    eyf = np.sum(s[1,:,:]) / sumt
+    st /= sumt
+    
+#    print("eyf:", eyf)
+#    print(neff)
+#    plt.imshow(np.abs(np.flip(s[:,-1].reshape((2, x.shape[0], y.shape[0]))[0,:,:].T, axis=0)))
+#    plt.show()
+
+    return neff, st, eyf
     
   def _compute_epsilons(self):
     nmesh = self.cell_size / (self.engine.resolution/U_A)
@@ -143,16 +211,22 @@ class EffIndex1DSession(Session):
         grid_axes[i] = np.concatenate((-np.flip(grid_axes[i])[:-1], grid_axes[i]))
 
     eps_r = eps[np.abs(grid_axes[0] - self.engine.reference_point/U_A).argmin(),:,:]
-    neff, mode = self._compute_mode(self.engine.mode_f/U_F, self.engine.mode_index, grid_axes[1], grid_axes[2], eps_r)
-
-    plt.imshow(np.flip(eps_r.T, axis=0))
-#    plt.show()
-    self.engine.last_mode = neff, np.flip(mode.T, axis=0)
+    if self.engine.mode_solver == "vec":
+      neff, mode, ey_frac = self._compute_mode(self.engine.mode_f/U_F, self.engine.mode_index, grid_axes[1], grid_axes[2], eps_r)
+      self.engine.last_mode = neff, np.flip(mode.T, axis=0), ey_frac, np.flip(eps_r.T, axis=0)
+    elif self.engine.mode_solver == "novec1":
+      neff, mode = self._compute_mode_novec1(self.engine.mode_f/U_F, self.engine.mode_index, grid_axes[1], grid_axes[2], eps_r)
+      self.engine.last_mode = neff, np.flip(mode.T, axis=0), np.flip(eps_r.T, axis=0)
+    else:
+      neff, mode = self._compute_mode_novec2(self.engine.mode_f/U_F, self.engine.mode_index, grid_axes[1], grid_axes[2], eps_r)
+      self.engine.last_mode = neff, np.flip(mode.T, axis=0), np.flip(eps_r.T, axis=0)
   
     return np.real(neff**2 + np.sum((eps - np.expand_dims(eps_r, 0))*np.expand_dims(mode, 0), axis=(1, 2)))
 
   def _prerun(self):
     epsilons = self._compute_epsilons()
+
+#    np.save("epsilons.npy", epsilons)
 
     geometry = [
       mp.Block(
@@ -179,12 +253,13 @@ class EffIndex1DSession(Session):
   def _runsim(self):
     regions = sorted(
       [ (r, r["time"], "add", i) for i, r in enumerate(self.analyze_regions) ] + \
-      [ (r, r["rtime"], "remove", i) for i, r in enumerate(self.analyze_regions) ],
-      key=lambda r: r[1])
+      [ (r, r["rtime"], "remove", i) for i, r in enumerate(self.analyze_regions) ] +\
+      [ (r, r["time"], "func") for r in self.analyze_funcs ],
+      key=lambda r: r[1] if r[1] >= 0 else np.inf)
     objs = {}
     last_t = 0
     for r in regions:
-      t = r[1]
+      t = r[1] if r[1] >= 0 else self.sim_time
       self.sim.run(until=(t - last_t))
       if r[2] == "add":
         obj = None
@@ -196,6 +271,9 @@ class EffIndex1DSession(Session):
         r[0]["callback"](obj)
       elif r[2] == "remove":
         self.sim.dft_objects.remove(objs[r[3]])
+      elif r[2] == "func":
+        (r[0]["func"])(self.sim)
+
       last_t = t
 
     self.sim.run(until=(self.sim_time - last_t))
@@ -216,7 +294,7 @@ class EffIndex1DSession(Session):
 Defines a 1d simulation engine that reduces a 3d structure to 1d along the x axis using effective index methods
 """
 class EffIndex1DEngine(Engine):
-  def __init__(self, resolution=10e-9, pml_thickness=1e-6, reference_point=0, mode_index=0, mode_f=407e12):
+  def __init__(self, resolution=10e-9, pml_thickness=1e-6, reference_point=0, mode_index=0, mode_f=407e12, mode_solver="vec"):
     self.name = "eff1d"
     self.resolution = resolution
     self.pml_thickness = pml_thickness
@@ -224,6 +302,7 @@ class EffIndex1DEngine(Engine):
     self.mode_index = mode_index
     self.mode_f = mode_f
     self.last_mode = None
+    self.mode_solver = mode_solver
 
   def new_session(self):
     return EffIndex1DSession(self)
