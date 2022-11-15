@@ -14,7 +14,6 @@ import sividl.sividl_devices as sivp
 
 
 #  Initialize Lumerical File Locations
-FDTDLoc = '/n/home08/eknall/sw_ENK/lumerical-2021-R2-2717-7bf43e7149_seas'
 FDTDLoc = '/n/sw/lumerical-2021-R2-2717-7bf43e7149_seas'
 FDTDexeLoc = os.path.join(FDTDLoc,'bin/fdtd-solutions')
 FDTDmpiLoc = os.path.join(FDTDLoc,'bin/fdtd-engine-ompi-lcl')
