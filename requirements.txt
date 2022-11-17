@@ -8,3 +8,4 @@ PyQt5
 pyglet
 matplotlib
 findiff
+mapbox-earcut
