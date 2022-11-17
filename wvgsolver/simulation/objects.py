@@ -178,13 +178,13 @@ class UnitCell(SimulationObject):
       dipoles = []
       for i in range(ndipoles):
         r = np.random.random_sample((3, )) - 0.5
-        pos = Vec3(r[0], 0.5*(r[1] + 0.5) if TEonly else r[1], r[2]) * self._size * dipole_region
+        pos = Vec3(r[0] + (window_pos-0.5), 0.5*(r[1] + 0.5) if TEonly else r[1], r[2]) * self._size * dipole_region
         d = 2*(np.random.random_sample((3,)) - 0.5)
         dipoles.append(DipoleSource(frange=(freqs[0], freqs[-1]), pos=pos, axis=Vec3(d[0], d[1], d[2]) * dipole_directions, phase=(pos.x*k*2*np.pi/self._size.x)))
       sess.set_sources(dipoles)
 
       sweep = sess.run(FrequencySpectrum(BBox(
-        Vec3(0, self._size.y*0.5*(analyze_region.y if isinstance(analyze_region, Vec3) else analyze_region) if TEonly else 0, 0),
+        Vec3(self._size.x * (window_pos - 0.5), self._size.y*0.5*(analyze_region.y if isinstance(analyze_region, Vec3) else analyze_region) if TEonly else 0, 0),
         self._size*analyze_region
       ), freqs))
       output[s,:] = sweep[:,0]

@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import sividl.sividl_devices as sivp
 
 
-#  Initialize Lumerical File Locations
+#  Initialize Lumerical File Location
 FDTDLoc = '/n/sw/lumerical-2021-R2-2717-7bf43e7149_seas'
 iter_count = 0
 nmirrs = 3
@@ -217,7 +217,7 @@ def fitness(cavity_params):
 
     return witness
 
-log_name = f"optimization_111522_00/optimal_sym-{nmirrs}-{ndefs}-{nmirrs}_111522_00.txt"
+log_name = f"optimization_111622_00/optimal_sym-{nmirrs}-{ndefs}-{nmirrs}_111622_00.txt"
 p0 = np.array([0.125,1.95,0.48,0.60,0.252])
 bounds = ((0.08,0.18),(1.0,2.2),(0.25,0.7),(0.25,0.7),(0.200,0.300))
 #maxDef, beam_w, hx, hy, aLR
