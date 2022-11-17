@@ -14,10 +14,7 @@ import sividl.sividl_devices as sivp
 
 
 #  Initialize Lumerical File Locations
-FDTDLoc = '/n/home08/eknall/sw_ENK/lumerical-2021-R2-2717-7bf43e7149_seas'
-FDTDexeLoc = os.path.join(FDTDLoc,'bin/fdtd-solutions')
-FDTDmpiLoc = os.path.join(FDTDLoc,'bin/fdtd-engine-ompi-lcl')
-print(FDTDexeLoc)
+FDTDLoc = '/n/sw/lumerical-2021-R2-2717-7bf43e7149_seas'
 fsps_dir = './fsps'
 iter_count = 0
 nmirrsL = 7
@@ -26,8 +23,6 @@ ndefs = 5
 rerun_thresh = 0.955
 # The target resonance frequency, in Hz
 
-#target_frequency = 391.3e12
-#source_frequency = 391.3e12
 target_frequency = 406.7e12
 source_frequency = 406.7e12
 target_qx = 6000 #(12000 each side)
@@ -123,7 +118,7 @@ def build_cavity(cavity_params):
     beam_w *= 1e-6
     beam_h = (beam_w / 2) * np.tan(np.pi/2 - apex_half_angle)
 
-    # Use level 1 automeshing accuracy, and don't show the Lumerical GUI while running simulations
+    # specify working_path to save solved fsp file
     engine = LumericalEngine(mesh_accuracy=5, hide=hide, working_path=fsps_dir,lumerical_path=FDTDLoc,save_fsp=True)
 
     cavity_cells = []
@@ -134,7 +129,6 @@ def build_cavity(cavity_params):
                                 DielectricMaterial(2.4028, order=2, color="blue"), 
                                 rot_angles=(np.pi/2, np.pi/2, 0))
 
-        #cell_box = BoxStructure(Vec3(0), cell_size, DielectricMaterial(n_beam, order=2, color="blue"))
         # offset the hole to respect the way we define the relevant lattice constant
         cell_hole = CylinderStructure(Vec3(-a/2,0,0), beam_h, hx/2, DielectricMaterial(1, order=1, color="red"), radius2=hy/2)
         unit_cell = UnitCell(structures = [cell_box, cell_hole], size=cell_size, engine=engine)
@@ -211,6 +205,12 @@ def fitness(cavity_params):
     r1["xyprofile"].save(file_name+"_xy.png",title=f"Q = {qtot:.0f} \nQ_scat = {qscat:.04} Qx = {qx:.0f}\nV = {vmode_copy:.3f}")
     r1["yzprofile"].save(file_name+"_yz.png",title=f"Q = {qtot:.0f} Q_scat = {qscat:.04}\n Qx1 = {qx1:.0f} Qx2 = {qx2:.0f}\nV = {vmode_copy:.3f} "+r"$\lambda$"+f" = {wavelen:.1f}")
 
+    r2 = cavity.simulate("quasipotential", target_freq=target_frequency, freqs=(0.25e15, 0.7e15, 100000), window_pos = 0)
+
+    # Plot the quasipotential
+    r2.show()
+
+
     # second condition ensures that we only rerun once
     if((wavelen_pen < rerun_thresh) and (source_frequency == target_frequency)):
         # shift source frequency to cavity resonance and rerun simulation.
@@ -223,7 +223,7 @@ def fitness(cavity_params):
 
     return witness
 
-log_name = f"cavity_run-{nmirrsL}-{ndefs}-{nmirrsR}_110922_00.txt"
+log_name = f"cavity_run-{nmirrsL}-{ndefs}-{nmirrsR}_111722_00.txt"
 
 p0 = np.array([0.1392,0.482,0.1135849,0.1605274,0.1135849,0.1605274,0.2717,0.2502])
 
@@ -233,3 +233,5 @@ with open(log_name, "ab") as f:
 
 fitness_result = fitness(p0)
 print(fitness_result)
+
+
