@@ -6,6 +6,7 @@ from .base import SimulationObject
 from ..parse.plotables import Bandstructure, EField, Quasipotential
 import logging
 import numpy as np
+from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 import json
 
@@ -96,16 +97,29 @@ class UnitCell(SimulationObject):
     res = self._simulate_bandstructure(sess, ks=(k, k, 1), freqs=freqs, **kwargs).data[0,:]
     freqs = np.linspace(*freqs)
 
-    first = freqs[np.argmax(res)]
-    bottom_ceil = max(0, int((first - min_gap - freqs[0]) * len(freqs)/(freqs[-1] - freqs[0])))
-    top_floor = min(len(freqs)-1, int((first + min_gap - freqs[0]) * len(freqs)/(freqs[-1] - freqs[0])))
-    if np.max(res[:bottom_ceil+1]) > np.max(res[top_floor:]):
-      second = freqs[np.argmax(res[:bottom_ceil+1])]
-    else:
-      second = freqs[np.argmax(res[top_floor:])+top_floor]
+    resolution = (np.max(freqs)-np.min(freqs))/len(freqs)
+    distance = 15e12/resolution
+    peaks, _ = find_peaks(res,prominence=2e4,distance=distance)
+    #np.savetxt("freqs.txt",freqs)
+    #np.savetxt("res.txt",res)
 
-    if first > second:
-      return second, first
+    #plt.plot(freqs,res)
+    #plt.plot(freqs[peaks],res[peaks],'.')
+    #plt.show()
+
+    #first = freqs[np.argmax(res)]
+    first = freqs[peaks[0]]
+    second = freqs[peaks[1]]
+
+    #bottom_ceil = max(0, int((first - min_gap - freqs[0]) * len(freqs)/(freqs[-1] - freqs[0])))
+    #top_floor = min(len(freqs)-1, int((first + min_gap - freqs[0]) * len(freqs)/(freqs[-1] - freqs[0])))
+    #if np.max(res[:bottom_ceil+1]) > np.max(res[top_floor:]):
+    #  second = freqs[np.argmax(res[:bottom_ceil+1])]
+    #else:
+    #  second = freqs[np.argmax(res[top_floor:])+top_floor]
+
+    #if first > second:
+    #  return second, first
     return first, second
 
   def _simulate_bandstructure(self, sess, ks=(0, 0.5, 20), freqs=(0.2e15, 0.6e15, 100000), run_time=600e-15, \

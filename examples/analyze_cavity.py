@@ -17,6 +17,12 @@ engine = LumericalEngine(lumerical_path=FDTDLoc)
 cavity_name = sys.argv[1]
 cavity = Cavity1D(load_path=cavity_name, engine=engine)
 
+
+r2 = cavity.simulate("quasipotential", target_freq=406.7e12)
+
+# Plot the quasipotential
+r2.show()
+
 # Get all resonance simulation results whose simulations started after 4/20/2021
 res = cavity.get_results("resonance", started_after=datetime.datetime(2021, 4, 20))
 
@@ -37,6 +43,9 @@ if len(res):
   # Let's open the Lumerical FSP file used for this simulation
   r["sess_res"].show()
   r["res"]["xyprofile"].show()
+  print(r["res"]["xyprofile"])
+  print(type(r["res"]["xyprofile"]))
+  r["res"]["xyprofile"].save("temp_xyprofile.png",title="title check")
   r["res"]["yzprofile"].show()
 
 
