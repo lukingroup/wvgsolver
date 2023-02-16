@@ -283,7 +283,7 @@ class Waveguide(SimulationObject):
     """
     size = self._getsize()
     if simbbox is None:
-      simbbox = BBox(Vec3(0), Vec3(2, 4, 4)*size)
+      simbbox = BBox(Vec3(0), Vec3(1, 4, 4)*size)
 
     tbboxes = {
       "x": simbbox,
