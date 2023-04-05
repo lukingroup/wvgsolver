@@ -269,8 +269,8 @@ class EffIndex1DSession(Session):
           obj = self.sim.add_energy(*r[0]["args"], **r[0]["kwargs"])
         objs[r[3]] = obj
         r[0]["callback"](obj)
-      elif r[2] == "remove":
-        self.sim.dft_objects.remove(objs[r[3]])
+#      elif r[2] == "remove":
+#        self.sim.dft_objects.remove(objs[r[3]])
       elif r[2] == "func":
         (r[0]["func"])(self.sim)
 
@@ -283,12 +283,13 @@ class EffIndex1DSession(Session):
       e_data = sim.get_array(center=mp.Vector3(), size=sim_region, component=mp.Ex)
       eps_data = sim.get_array(center=mp.Vector3(), size=sim_region, component=mp.Dielectric)
       plt.clf()
-      plt.plot(np.real(eps_data), label="Re[epsilon]")
+      plt.plot(np.real(eps_data), label="Re[eps]")
       plt.plot(100*np.abs(e_data), label="Ex")
+      plt.xticks([])
+      plt.xlabel("Cavity axis (z)")
       plt.legend()
-      plt.pause(0.1)
 
-#    self.sim.run(mp.at_every(1, debug), until=0.1*self.sim_time)
+    self.sim.run(mp.at_every(1, debug), until=0.1*self.sim_time)
 
 """
 Defines a 1d simulation engine that reduces a 3d structure to 1d along the x axis using effective index methods

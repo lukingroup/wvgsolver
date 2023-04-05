@@ -1,11 +1,12 @@
 from ..geometry.sources import DipoleSource, ModeSource
 from ..utils.linalg import Vec3, BBox
 from ..utils.constants import F_EPSILON, AXIS_X, AXIS_Y, AXIS_Z, C_LIGHT
-from ..analysis.procedures import FrequencySpectrum, SideWavePower, WaveEnergy, WaveProfile, Transmission
+from ..analysis.procedures import FrequencySpectrum, SideWavePower, WaveEnergy, WaveProfile, Transmission, Fields
 from .base import SimulationObject
 from ..parse.plotables import Bandstructure, EField, Quasipotential
 import logging
 import numpy as np
+from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 import json
 
@@ -96,16 +97,29 @@ class UnitCell(SimulationObject):
     res = self._simulate_bandstructure(sess, ks=(k, k, 1), freqs=freqs, **kwargs).data[0,:]
     freqs = np.linspace(*freqs)
 
-    first = freqs[np.argmax(res)]
-    bottom_ceil = max(0, int((first - min_gap - freqs[0]) * len(freqs)/(freqs[-1] - freqs[0])))
-    top_floor = min(len(freqs)-1, int((first + min_gap - freqs[0]) * len(freqs)/(freqs[-1] - freqs[0])))
-    if np.max(res[:bottom_ceil+1]) > np.max(res[top_floor:]):
-      second = freqs[np.argmax(res[:bottom_ceil+1])]
-    else:
-      second = freqs[np.argmax(res[top_floor:])+top_floor]
+    resolution = (np.max(freqs)-np.min(freqs))/len(freqs)
+    distance = 15e12/resolution
+    peaks, _ = find_peaks(res,prominence=2e4,distance=distance)
+    #np.savetxt("freqs.txt",freqs)
+    #np.savetxt("res.txt",res)
 
-    if first > second:
-      return second, first
+    #plt.plot(freqs,res)
+    #plt.plot(freqs[peaks],res[peaks],'.')
+    #plt.show()
+
+    #first = freqs[np.argmax(res)]
+    first = freqs[peaks[0]]
+    second = freqs[peaks[1]]
+
+    #bottom_ceil = max(0, int((first - min_gap - freqs[0]) * len(freqs)/(freqs[-1] - freqs[0])))
+    #top_floor = min(len(freqs)-1, int((first + min_gap - freqs[0]) * len(freqs)/(freqs[-1] - freqs[0])))
+    #if np.max(res[:bottom_ceil+1]) > np.max(res[top_floor:]):
+    #  second = freqs[np.argmax(res[:bottom_ceil+1])]
+    #else:
+    #  second = freqs[np.argmax(res[top_floor:])+top_floor]
+
+    #if first > second:
+    #  return second, first
     return first, second
 
   def _simulate_bandstructure(self, sess, ks=(0, 0.5, 20), freqs=(0.2e15, 0.6e15, 100000), run_time=600e-15, \
@@ -178,13 +192,13 @@ class UnitCell(SimulationObject):
       dipoles = []
       for i in range(ndipoles):
         r = np.random.random_sample((3, )) - 0.5
-        pos = Vec3(r[0], 0.5*(r[1] + 0.5) if TEonly else r[1], r[2]) * self._size * dipole_region
+        pos = Vec3(r[0] + (window_pos-0.5), 0.5*(r[1] + 0.5) if TEonly else r[1], r[2]) * self._size * dipole_region
         d = 2*(np.random.random_sample((3,)) - 0.5)
         dipoles.append(DipoleSource(frange=(freqs[0], freqs[-1]), pos=pos, axis=Vec3(d[0], d[1], d[2]) * dipole_directions, phase=(pos.x*k*2*np.pi/self._size.x)))
       sess.set_sources(dipoles)
 
       sweep = sess.run(FrequencySpectrum(BBox(
-        Vec3(0, self._size.y*0.5*(analyze_region.y if isinstance(analyze_region, Vec3) else analyze_region) if TEonly else 0, 0),
+        Vec3(self._size.x * (window_pos - 0.5), self._size.y*0.5*(analyze_region.y if isinstance(analyze_region, Vec3) else analyze_region) if TEonly else 0, 0),
         self._size*analyze_region
       ), freqs))
       output[s,:] = sweep[:,0]
@@ -269,7 +283,7 @@ class Waveguide(SimulationObject):
     """
     size = self._getsize()
     if simbbox is None:
-      simbbox = BBox(Vec3(0), Vec3(2, 4, 4)*size)
+      simbbox = BBox(Vec3(0), Vec3(1, 4, 4)*size)
 
     tbboxes = {
       "x": simbbox,
@@ -393,7 +407,8 @@ class Cavity1D(Waveguide):
       xsize = c.get_size().x
       for s in c.get_structures():
         copy_s = s.copy()
-        copy_s.pos += offset + Vec3(xsize/2, 0, 0)
+        copy_s.pos = Vec3(offset) + copy_s.pos
+        copy_s.pos.x += xsize / 2
         structs.append(copy_s)
 
       if i <= center_cell:
@@ -541,6 +556,7 @@ class Cavity1D(Waveguide):
       "pymax": SideWavePower(bbox, AXIS_Y, 1, st, target_freq),
       "pzmin": SideWavePower(bbox, AXIS_Z, -1, st, target_freq),
       "pzmax": SideWavePower(bbox, AXIS_Z, 1, st, target_freq),
+      "fields": Fields(bbox, 1, AXIS_X, analyze_time),
       "xyprofile": WaveProfile(BBox(bbox.pos + Vec3(0, 0, 0.45*size.z), bbox.size), AXIS_Z, st, target_freq),
       "yzprofile": WaveProfile(bbox, AXIS_X, st, target_freq),
     }
@@ -566,6 +582,7 @@ class Cavity1D(Waveguide):
     qzmax = 2*np.pi*freq*e/sess.analyze("pzmax")
     xyprofile = sess.analyze("xyprofile")
     yzprofile = sess.analyze("yzprofile")
+    fields = sess.analyze("fields")
 
     output = {
       "freq": freq,
@@ -577,7 +594,8 @@ class Cavity1D(Waveguide):
       "vmode": vmode,
       "eremain": e,
       "xyprofile": EField(xyprofile, ("x", "y")),
-      "yzprofile": EField(yzprofile, ("y", "z"))
+      "yzprofile": EField(yzprofile, ("y", "z")),
+      "fields": fields
     }
     if not TEonly:
       output["qymin"] = qymin

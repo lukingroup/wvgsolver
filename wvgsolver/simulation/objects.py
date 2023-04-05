@@ -1,7 +1,7 @@
 from ..geometry.sources import DipoleSource, ModeSource
 from ..utils.linalg import Vec3, BBox
 from ..utils.constants import F_EPSILON, AXIS_X, AXIS_Y, AXIS_Z, C_LIGHT
-from ..analysis.procedures import FrequencySpectrum, SideWavePower, WaveEnergy, WaveProfile, Transmission
+from ..analysis.procedures import FrequencySpectrum, SideWavePower, WaveEnergy, WaveProfile, Transmission, Fields
 from .base import SimulationObject
 from ..parse.plotables import Bandstructure, EField, Quasipotential
 import logging
@@ -283,7 +283,7 @@ class Waveguide(SimulationObject):
     """
     size = self._getsize()
     if simbbox is None:
-      simbbox = BBox(Vec3(0), Vec3(2, 4, 4)*size)
+      simbbox = BBox(Vec3(0), Vec3(1, 4, 4)*size)
 
     tbboxes = {
       "x": simbbox,
@@ -556,6 +556,7 @@ class Cavity1D(Waveguide):
       "pymax": SideWavePower(bbox, AXIS_Y, 1, st, target_freq),
       "pzmin": SideWavePower(bbox, AXIS_Z, -1, st, target_freq),
       "pzmax": SideWavePower(bbox, AXIS_Z, 1, st, target_freq),
+      "fields": Fields(bbox, 1, AXIS_X, analyze_time),
       "xyprofile": WaveProfile(BBox(bbox.pos + Vec3(0, 0, 0.45*size.z), bbox.size), AXIS_Z, st, target_freq),
       "yzprofile": WaveProfile(bbox, AXIS_X, st, target_freq),
     }
@@ -581,6 +582,7 @@ class Cavity1D(Waveguide):
     qzmax = 2*np.pi*freq*e/sess.analyze("pzmax")
     xyprofile = sess.analyze("xyprofile")
     yzprofile = sess.analyze("yzprofile")
+    fields = sess.analyze("fields")
 
     output = {
       "freq": freq,
@@ -592,7 +594,8 @@ class Cavity1D(Waveguide):
       "vmode": vmode,
       "eremain": e,
       "xyprofile": EField(xyprofile, ("x", "y")),
-      "yzprofile": EField(yzprofile, ("y", "z"))
+      "yzprofile": EField(yzprofile, ("y", "z")),
+      "fields": fields
     }
     if not TEonly:
       output["qymin"] = qymin

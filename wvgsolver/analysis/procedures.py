@@ -423,9 +423,10 @@ class Transmission(Analysis):
       "time": 0,
       "rtime": -1, 
       "type": "flux",
-      "args": (self.target_freq/U_F, 0, 1, mp.FluxRegion(
-        center=mp.Vector3(z=(self.bbox.pos.x - self.bbox.size.x/2)/U_A),
-        size=mp.Vector3()
+      "args": (self.target_freq/U_F, 1e12/U_F, 1, mp.FluxRegion(
+        center=mp.Vector3(self.bbox.pos.y/U_A, self.bbox.pos.z/U_A, (self.bbox.pos.x - self.bbox.size.x/2)/U_A),
+        size=mp.Vector3(self.bbox.size.y/U_A, self.bbox.size.z/U_A, 0),
+        direction=mp.Z
       )),
       "kwargs": {},
       "callback": self.set_resobj1
@@ -433,9 +434,10 @@ class Transmission(Analysis):
       "time": 0,
       "rtime": -1, 
       "type": "flux",
-      "args": (self.target_freq/U_F, 0, 1, mp.FluxRegion(
-        center=mp.Vector3(z=(self.bbox.pos.x + self.bbox.size.x/2)/U_A),
-        size=mp.Vector3()
+      "args": (self.target_freq/U_F, 1e12/U_F, 1, mp.FluxRegion(
+        center=mp.Vector3(self.bbox.pos.y/U_A, self.bbox.pos.z/U_A, (self.bbox.pos.x + self.bbox.size.x/2)/U_A),
+        size=mp.Vector3(self.bbox.size.y/U_A, self.bbox.size.z/U_A, 0),
+        direction=mp.Z
       )),
       "kwargs": {},
       "callback": self.set_resobj2
@@ -444,6 +446,7 @@ class Transmission(Analysis):
       sess.add_analyze_region(r)
 
   def set_resobj1(self, F):
+    print("resobj1")
     self.F1 = F
   
   def set_resobj2(self, F):
@@ -458,6 +461,7 @@ class Transmission(Analysis):
   def _analyze_eff1d(self, sess):
     if not hasattr(self, "F1") or not hasattr(self, "F2"):
       return 0
+    print(self.F1)
     f1 = mp.get_fluxes(self.F1)[0]
     f2 = mp.get_fluxes(self.F2)[0]
     print(f1, f2)
@@ -546,13 +550,27 @@ class Fields(Analysis):
     )
   
   def _setup_eff1d(self, sess):
-    pass
+    self.func = {
+      "func": self.get_fields,
+      "time": self.start_time/U_T
+    }
+    sess.add_analyze_func(self.func)
+
+  def get_fields(self, sim):
+    self.E_res = sim.get_array(
+      center=mp.Vector3(z=self.bbox.pos.x/U_A),
+      size=mp.Vector3(z=self.bbox.size.x/U_A), component=mp.Ex)
   
   def _cleanup_eff1d(self, sess):
-    pass
+    if hasattr(self, "func"):
+      sess.remove_analyze_func(self.func)
+      del self.func
   
   def _analyze_eff1d(self, sess):
-    pass
+    if hasattr(self, "E_res"):
+      return self.E_res
+      del self.E_res
+    return None
 
 class Index(Analysis):
   def __init__(self, bbox, ndims=3, norm_axis=AXIS_Z, axis=AXIS_X, downsample=1):
