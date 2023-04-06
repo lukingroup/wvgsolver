@@ -326,4 +326,4 @@ class LumericalMeshRegion:
   def add(self, engine):
     engine.fdtd.addmesh(x=self.bbox.pos.x, y=self.bbox.pos.y, z=self.bbox.pos.z, \
       x_span=self.bbox.size.x, y_span=self.bbox.size.y, z_span=self.bbox.size.z, \
-      dx=(self.dx*1e6), dy=(self.dy*1e6), dz=(self.dz*1e6))
+      dx=(self.dx), dy=(self.dy), dz=(self.dz))
