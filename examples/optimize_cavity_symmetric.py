@@ -184,7 +184,7 @@ def fitness(cavity_params):
     qtot_max = 300000
     purcell = qtot/vmode if qtot < qtot_max else qtot_max/vmode
     F = r1["freq"]
-    wavelen = (2.99e8/F) * 1e9
+    wavelen = (2.99792458e8/F) * 1e9
 
     print("F: %f, Vmode: %f, Qwvg: %f, Qsc: %f" % (
       r1["freq"], r1["vmode"],

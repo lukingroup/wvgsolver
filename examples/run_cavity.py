@@ -21,7 +21,7 @@ save_base_dir = "C:\\Users\\Qi\\Desktop\\WvgSolverOutput"
 
 
 nmirrsL = 7
-nmirrsR = 5
+nmirrsR = 4
 ndefs = 5
 
 target_frequency = 406.7e12 # Target resonance frequency (Hz)
@@ -87,7 +87,7 @@ def build_cavity(cavity_params):
 
     maxDef, beam_w, hxL, hyL, hxR, hyR, aL, aR = cavity_params
 
-    cavity_name = "_".join([str(n) for n in cavity_params])
+    cavity_name = "_".join([f"{n:.6f}" for n in cavity_params])
     print(f"Cavity params: {cavity_params}")
     print(f"Cavity name: {cavity_name}")
 
@@ -119,7 +119,7 @@ def build_cavity(cavity_params):
         'nholes_defect'       : ndefs,
         'min_hole_dim'        : 0.05,
         'effective_index'     : 1.6,
-        'resonance_wavelength': 0.737
+        'resonance_wavelength': 0.737134
     }
 
 
@@ -200,7 +200,7 @@ def fitness(cavity_params):
     purcell = min(qtot, qtot_max) / vmode
 
     F = r1["freq"]
-    wavelen = (2.99e8 / F) * 1e9 # nm
+    wavelen = (2.99792458e8 / F) * 1e9 # nm
 
     print(f"F: {r1['freq']}, Vmode: {r1['vmode']}, Qwvg: {qx}, Qsc: {qscat}")
     print(f"Purcell factor: {purcell:.0f}.")
@@ -215,7 +215,7 @@ def fitness(cavity_params):
     # FIGURE OF MERIT
     witness = -1 * purcell * wavelen_pen * guidedness * qx_pen
 
-    with open(log_name, "ab") as f:
+    with open(os.path.join(save_base_dir, log_name), "ab") as f:
         f.write(b"\n")
         step_info = np.append(cavity_params, np.array([witness, wavelen_pen, purcell,
                                                        r1["qxmin"], r1["qxmax"],
@@ -234,7 +234,7 @@ def fitness(cavity_params):
     # Second condition ensures that we only rerun once
     if((wavelen_pen < rerun_thresh) and (source_frequency == target_frequency)):
         # Shift source frequency to cavity resonance and rerun simulation.
-        # (This should help avoid non cavities with artificially low mode volumes)
+        # (This should help avoid non cavities with artificially low mode volumes)F
         print(f"Rerun as frequency of {F:.0f} Hz was too far off! Current fitness: {witness}.")
 
         source_frequency = F
@@ -256,7 +256,7 @@ log_name = f"{timestamp}-{design_name}-cavity_run-{nmirrsL}-{ndefs}-{nmirrsR}.tx
 p0 = np.array([0.14276, 0.483143,
                0.108918, 0.164633,
                0.108918, 0.164633,
-               0.273535, 0.251509]) * 0.99662
+               0.273535, 0.251509]) * 0.99382  # Target: 406.7 THz, 737.134
 
 with open(os.path.join(save_base_dir, log_name), "ab") as f:
     f.write(b"maxDef    beam_w    hxL    hyL    hxR    hyR    aL    aR    fitness    wavelen_pen    purcell    qxmin    qxmax    qscat    qtot    vmode    vmode_copy    freq")

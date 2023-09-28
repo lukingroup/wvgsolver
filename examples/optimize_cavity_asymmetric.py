@@ -15,8 +15,6 @@ from wvgsolver.utils import BBox
 from wvgsolver.geometry import BoxStructure, TriStructure, CylinderStructure, DielectricMaterial, MeshRegion
 from wvgsolver.engine import LumericalEngine
 
-
-
 #  Initialize Lumerical File Location
 FDTDLoc = 'D:\\Program Files\\Lumerical\\v232'
 save_dir = "C:\\Users\\Qi\\Desktop\\WvgSolverOutput"
@@ -158,7 +156,7 @@ def build_cavity(cavity_params):
                   DielectricMaterial(n_beam, order=2, color="gray"), rot_angles=(np.pi/2, np.pi/2, 0))], engine=engine, center_shift = shift)
 
 
-    cavity_name = "_".join([str(n) for n in cavity_params])
+    cavity_name = "_".join([f"{n:.6f}" for n in cavity_params])
 
     # By setting the save path here, the cavity will save itself after each simulation to this file
     file_name = os.path.join(save_dir, f"{log_name[:-4]}_{cavity_name}_{iter_count}")
@@ -194,15 +192,13 @@ def fitness(cavity_params):
     purcell = min(qtot, qtot_max) / vmode
 
     F = r1["freq"]
-    wavelen = (2.99e8 / F) * 1e9 # nm
+    wavelen = (2.99792458e8 / F) * 1e9 # nm
 
 
     print(f"F: {r1['freq']}, Vmode: {r1['vmode']}, Qwvg: {qx}, Qsc: {qscat}")
     print(f"Purcell factor: {purcell:.0f}.")
 
     wavelen_pen = gauss(F, target_frequency, 4e12)
-
-    # TODO: check if / 4 is correct
     qx_pen = (gauss(qx, target_qx, 120000) + gauss(qx, target_qx, 60000) +
               gauss(qx, target_qx, 30000) + gauss(qx, target_qx, 2000) / 4)
     
@@ -222,7 +218,7 @@ def fitness(cavity_params):
     r1["xyprofile"].save(file_name + "_xy.png", 
                          title=f"Q = {qtot:.0f} \nQ_scat = {qscat:.04} Qx = {qx:.0f}\nV = {vmode_copy:.3f}")
     r1["yzprofile"].save(file_name + "_yz.png", 
-                         title=f"Q = {qtot:.0f} Q_scat = {qscat:.04}\n Qx1 = {qx1:.0f} Qx2 = {qx2:.0f}\nV = {vmode_copy:.3f} "+r"$\lambda$"+f" = {wavelen:.1f}")
+                         title=f"Q = {qtot:.0f} Q_scat = {qscat:.04}\n Qx1 = {qx1:.0f} Qx2 = {qx2:.0f}\nV = {vmode_copy:.3f} "+r"$\lambda$"+f" = {wavelen:.3f}")
 
     # second condition ensures that we only rerun once
     if((wavelen_pen < rerun_thresh) and (source_frequency == target_frequency)):
