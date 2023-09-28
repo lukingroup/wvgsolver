@@ -3,9 +3,11 @@ This example optimizes a cavity from a given starting geometry.
 """
 
 import os
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import sividl.sividl_devices as sivp
+from datetime import datetime
 
 from wvgsolver import Cavity1D, UnitCell, Vec3
 from wvgsolver.utils import BBox
@@ -237,6 +239,11 @@ def fitness(cavity_params):
 
     return witness
 
+if len(sys.argv) == 2:
+    design_name = sys.argv[1]
+else:
+    design_name = input("Design name?")
+timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 log_name = os.path.join(save_dir, f"cavity_run-{nmirrsL}-{ndefs}-{nmirrsR}.txt")
 
 # maxDef, beam_w, hxL, hyL, hxR, hyR, aL, aR
