@@ -244,7 +244,7 @@ if len(sys.argv) == 2:
 else:
     design_name = input("Design name?")
 timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-log_name = os.path.join(save_dir, f"cavity_run-{nmirrsL}-{ndefs}-{nmirrsR}.txt")
+log_name = os.path.join(save_dir, f"{timestamp}-{design_name}-cavity_run-{nmirrsL}-{ndefs}-{nmirrsR}.txt")
 
 # maxDef, beam_w, hxL, hyL, hxR, hyR, aL, aR
 p0 = np.array([0.14276, 0.483143,
