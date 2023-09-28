@@ -176,18 +176,23 @@ def fitness(cavity_params):
     r1 = cavity.simulate("resonance", target_freq=source_frequency, source_pulselength=60e-15,
                         analyze_time=600e-15, mesh_regions = [man_mesh], sim_size=Vec3(1.25, 3, 5.5))
 
-    qx = 1/(1/r1["qxmin"] + 1/r1["qxmax"])
     qx1 = r1["qxmin"]
     qx2 = r1["qxmax"]
-    qy = 1/(2/r1["qymax"])
-    qz = 1/(1/r1["qzmin"] + 1/r1["qzmax"])
-    qscat = 1/((1/qy)+(1/qz))
-    qtot = 1/(1/qx + 1/qy + 1/qz)
+    qx = 1 / (1 / qx1 + 1 / qx2)
+
+    qy = 1 / (2 / r1["qymax"])
+    qz = 1 / (1 / r1["qzmin"] + 1 / r1["qzmax"])
+    qscat = 1 / (1 / qy + 1 / qz)
+
+    qtot = 1 / (1 / qx + 1 / qscat)
+
     vmode = r1["vmode"]
     vmode_copy = vmode
     vmode = 1e6 if vmode < 0.48 else vmode
+
     qtot_max = 300000
-    purcell = qtot/vmode if qtot < qtot_max else qtot_max/vmode
+    purcell = min(qtot, qtot_max) / vmode
+
     F = r1["freq"]
     wavelen = (2.99e8 / F) * 1e9 # nm
 
@@ -200,7 +205,10 @@ def fitness(cavity_params):
     # TODO: check if / 4 is correct
     qx_pen = (gauss(qx, target_qx, 120000) + gauss(qx, target_qx, 60000) +
               gauss(qx, target_qx, 30000) + gauss(qx, target_qx, 2000) / 4)
+    
     qscat_max = 500000
+    guidedness = min(qscat, qscat_max) / qx
+
     # FIGURE OF MERIT
     witness = -1 * purcell * wavelen_pen * guidedness * qx_pen
 
