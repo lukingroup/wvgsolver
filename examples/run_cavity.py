@@ -125,11 +125,12 @@ def build_cavity(cavity_params):
     beam_h = (beam_w / 2) * np.tan(np.pi/2 - apex_half_angle)
 
     # Specify working_path to save solved fsp file
-    engine = LumericalEngine(mesh_accuracy=5, hide=hide, working_path=fsps_dir,lumerical_path=FDTDLoc,save_fsp=True)
+    engine = LumericalEngine(mesh_accuracy=5, hide=hide, working_path=fsps_dir, lumerical_path=FDTDLoc,save_fsp=True)
 
     cavity_cells = []
+    print("Printing cavity hole size and periods...")
     for hx, hy, a in zip(all_hx, all_hy, all_a):
-        print(hx,hy,a)
+        print(hx, hy, a)
         cell_size = Vec3(a,beam_w,beam_h)
         cell_box = TriStructure(Vec3(0), Vec3(beam_w, apex_half_angle, a), 
                                 DielectricMaterial(n_beam, order=2, color="blue"), 
@@ -154,14 +155,14 @@ def build_cavity(cavity_params):
       structures=[TriStructure(Vec3(0), Vec3(beam_w, apex_half_angle, beam_length), 
                   DielectricMaterial(n_beam, order=2, color="gray"), rot_angles=(np.pi/2, np.pi/2, 0))], engine=engine, center_shift = shift)
 
-    print(cavity_params)
     cavity_name = "_".join([str(n) for n in cavity_params])
-    print(cavity_name)
+    print(f"Cavity params: {cavity_params}")
+    print(f"Cavity name: {cavity_name}")
 
     # By setting the save path here, the cavity will save itself after each simulation to this file
-    file_name = os.path.join(save_dir, log_name[:-4] + "_" + cavity_name + "_" + str(iter_count))
+    file_name = os.path.join(save_dir, f"{log_name[:-4]}_{cavity_name}_{iter_count}")
     cavity.save(file_name + ".obj")
-    plot_geom(cavity, file_name + "_geom.png",hide)
+    plot_geom(cavity, file_name + "_geom.png", hide)
     return cavity, file_name
 
 def fitness(cavity_params):
@@ -174,15 +175,15 @@ def fitness(cavity_params):
     r1 = cavity.simulate("resonance", target_freq=source_frequency, source_pulselength=60e-15, 
                         analyze_time=600e-15, mesh_regions = [man_mesh], sim_size=Vec3(1.25, 3, 5.5))
 
-    qx = 1 / (1 / r1["qxmin"] + 1 / r1["qxmax"])
     qx1 = r1["qxmin"]
     qx2 = r1["qxmax"]
+    qx = 1 / (1 / qx1 + 1 / qx2)
 
     qy = 1 / (2 / r1["qymax"])
     qz = 1 / (1 / r1["qzmin"] + 1 / r1["qzmax"])
+    qscat = 1 / (1 / qy + 1 / qz)
 
-    qscat = 1 / ((1 / qy)+(1 / qz))
-    qtot = 1 / (1 / qx + 1 / qy + 1 / qz)
+    qtot = 1 / (1 / qx + 1 / qscat)
 
     vmode = r1["vmode"]
     vmode_copy = vmode
@@ -194,10 +195,8 @@ def fitness(cavity_params):
     F = r1["freq"]
     wavelen = (2.99e8 / F) * 1e9 # nm
 
-    print(f"F: {r1['freq']}, Vmode: {r1['vmode']}, "
-          f"Qwvg: {1/(1/r1['qxmin'] + 1/r1['qxmax'])}, "
-          f"Qsc: {1/(2/r1['qymax'] + 1/r1['qzmin'] + 1/r1['qzmax'])}")
-    print(purcell)
+    print(f"F: {r1['freq']}, Vmode: {r1['vmode']}, Qwvg: {qx}, Qsc: {qscat}")
+    print(f"Purcell factor: {purcell:.0f}.")
 
     wavelen_pen = gauss(F, target_frequency, 4e12)
 
@@ -231,9 +230,11 @@ def fitness(cavity_params):
     if((wavelen_pen < rerun_thresh) and (source_frequency == target_frequency)):
         # Shift source frequency to cavity resonance and rerun simulation.
         # (This should help avoid non cavities with artificially low mode volumes)
+        print(f"Rerun as frequency of {F:.0f} Hz was too far off! Current fitness: {witness}.")
+
         source_frequency = F
         witness_rerun = fitness(cavity_params)
-        print("Rerun. Fitness when source is recentered:",witness_rerun)
+        print(f"After rerun. Fitness when source is recentered: {witness_rerun}.")
         source_frequency = target_frequency
         return witness_rerun
 
@@ -263,4 +264,4 @@ with open(log_name, "ab") as f:
     f.write(b"maxDef    beam_w    hxL    hyL    hxR    hyR    aL    aR    fitness    wavelen_pen    purcell    qxmin    qxmax    qscat    qtot    vmode    vmode_copy    freq")
 
 fitness_result = fitness(p0)
-print(fitness_result)
+print(f"Final fitness: {fitness_result:.3f}.")
