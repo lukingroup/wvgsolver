@@ -25,15 +25,21 @@ fsps_dir = os.path.join(save_dir, 'fsps')
 nmirrsL = 7
 nmirrsR = 5
 ndefs = 5
-rerun_thresh = 0.955
-# The target resonance frequency, in Hz
-
-target_frequency = 406.7e12
-source_frequency = 406.7e12
 target_qx = 11500
+
+# Target resonance frequency (Hz)
+target_frequency = 406.7e12
+# Frequency of excitation light in simulation (Hz)
+source_frequency = 406.7e12
+# Threshold for how far the frequency can be off before we rerun
+rerun_thresh = 0.955
+
+iter_count = 0
+n_beam = 2.4028
 hide = True
 
-
+def gauss(x, x0, sigma):
+    return np.exp(-((x - x0) / sigma) ** 2)
 
 def plot_geom(cavity, file_name, hide):
     plt.close()
@@ -106,7 +112,6 @@ def build_cavity(cavity_params):
         'resonance_wavelength': 0.737
     }
 
-    n_beam = 2.4028
     apex_half_angle = 50*np.pi/180
 
 
@@ -129,8 +134,8 @@ def build_cavity(cavity_params):
     for hx, hy, a in zip(all_hx, all_hy, all_a):
         print(hx, hy, a)
         cell_size = Vec3(a,beam_w,beam_h)
-        cell_box = TriStructure(Vec3(0), Vec3(beam_w, apex_half_angle, a), 
-                                DielectricMaterial(2.4028, order=2, color="blue"), 
+        cell_box = TriStructure(Vec3(0), Vec3(beam_w, apex_half_angle, a),
+                                DielectricMaterial(n_beam, order=2, color="blue"),
                                 rot_angles=(np.pi/2, np.pi/2, 0))
 
         # offset the hole to respect the way we define the relevant lattice constant
@@ -139,6 +144,7 @@ def build_cavity(cavity_params):
         cavity_cells += [unit_cell]
 
     # The length of the cavity beam
+    # TODO: why not calculated?
     beam_length = 15e-6
     
     # shift the cavity so that the source is centered in the dielectric
@@ -149,7 +155,9 @@ def build_cavity(cavity_params):
     cavity = Cavity1D(
       unit_cells=cavity_cells,
       structures=[TriStructure(Vec3(0), Vec3(beam_w, apex_half_angle, beam_length), 
-                  DielectricMaterial(2.4028, order=2, color="gray"), rot_angles=(np.pi/2, np.pi/2, 0))], engine=engine, center_shift = shift)
+                  DielectricMaterial(n_beam, order=2, color="gray"), rot_angles=(np.pi/2, np.pi/2, 0))], engine=engine, center_shift = shift)
+
+
     cavity_name = "_".join([str(n) for n in cavity_params])
 
     # By setting the save path here, the cavity will save itself after each simulation to this file
@@ -159,11 +167,7 @@ def build_cavity(cavity_params):
     return cavity, file_name
 
 def fitness(cavity_params):
-    global iter_count
-    global rerun_thresh
-    global target_frequency
     global source_frequency
-    global target_qx
     
     cavity, file_name = build_cavity(cavity_params)
     
@@ -185,20 +189,21 @@ def fitness(cavity_params):
     qtot_max = 300000
     purcell = qtot/vmode if qtot < qtot_max else qtot_max/vmode
     F = r1["freq"]
-    wavelen = (2.99e8/F) * 1e9
+    wavelen = (2.99e8 / F) * 1e9 # nm
 
-    print("F: %f, Vmode: %f, Qwvg: %f, Qsc: %f" % (
-      r1["freq"], r1["vmode"],
-      1/(1/r1["qxmin"] + 1/r1["qxmax"]),
-      1/(2/r1["qymax"] + 1/r1["qzmin"] + 1/r1["qzmax"])
-    ))
-    print(purcell)
-    wavelen_pen = np.exp(-((target_frequency-F)/4e12)**2)
-    qx_pen = (np.exp(-((target_qx-qx)/120000)**2)+np.exp(-((target_qx-qx)/60000)**2)
-              +np.exp(-((target_qx-qx)/30000)**2)+np.exp(-((target_qx-qx)/2000)**2)/4)
+
+    print(f"F: {r1['freq']}, Vmode: {r1['vmode']}, Qwvg: {qx}, Qsc: {qscat}")
+    print(f"Purcell factor: {purcell:.0f}.")
+
+    wavelen_pen = gauss(F, target_frequency, 4e12)
+
+    # TODO: check if / 4 is correct
+    qx_pen = (gauss(qx, target_qx, 120000) + gauss(qx, target_qx, 60000) +
+              gauss(qx, target_qx, 30000) + gauss(qx, target_qx, 2000) / 4)
     qscat_max = 500000
-    guidedness = qscat/qx if qscat < qscat_max else qscat_max/qx
-    witness = -1*purcell*wavelen_pen*guidedness*qx_pen
+    # FIGURE OF MERIT
+    witness = -1 * purcell * wavelen_pen * guidedness * qx_pen
+
     with open(log_name, "ab") as f:
         f.write(b"\n")
         step_info = np.append(cavity_params, np.array([witness, wavelen_pen,purcell,
@@ -215,9 +220,11 @@ def fitness(cavity_params):
     if((wavelen_pen < rerun_thresh) and (source_frequency == target_frequency)):
         # shift source frequency to cavity resonance and rerun simulation.
         # (this should help avoid non cavities with artificially low mode volumes)
+        print(f"Rerun as frequency of {F:.0f} Hz was too far off! Current fitness: {witness}.")
+
         source_frequency = F
         witness_rerun = fitness(cavity_params)
-        print("rerun. Fitness when source is recentered:",witness_rerun)
+        print(f"After rerun. Fitness when source is recentered: {witness_rerun}.")
         source_frequency = target_frequency
         return witness_rerun
 
