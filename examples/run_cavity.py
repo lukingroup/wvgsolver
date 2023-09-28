@@ -14,8 +14,9 @@ from wvgsolver.engine import LumericalEngine
 
 
 #  Initialize Lumerical File Locations
-FDTDLoc = 'D:\\Program Files\\Lumerical\\v232'  # '/n/sw/lumerical-2021-R2-2717-7bf43e7149_seas'
-fsps_dir = './fsps'
+FDTDLoc = "D:\\Program Files\\Lumerical\\v232"  # '/n/sw/lumerical-2021-R2-2717-7bf43e7149_seas'
+save_dir = "C:\\Users\\Qi\\Desktop\\WvgSolverOutput"
+fsps_dir = os.path.join(save_dir, 'fsps')
 
 nmirrsL = 7
 nmirrsR = 5
@@ -84,8 +85,10 @@ def plot_geom(cavity, file_name, hide):
 def build_cavity(cavity_params):
     global iter_count
     iter_count += 1
+
     maxDef, beam_w, hxL, hyL, hxR, hyR, aL, aR = cavity_params
     print(cavity_params)
+    
     pcc_params = {
         'layer'               : 2,
         'aL'                  : aL,
@@ -108,10 +111,9 @@ def build_cavity(cavity_params):
 
     apex_half_angle = 50*np.pi/180
 
-
     cavity = sivp.AirholePCC_PeriodOnly(pcc_params)
     all_hx, all_hy, all_a = cavity.compute_geometry()
-    all_a = np.append(all_a,all_a[-1])
+    all_a = np.append(all_a, all_a[-1])
 
     # convert from microns to meters
     all_hx *= 1e-6
@@ -120,7 +122,7 @@ def build_cavity(cavity_params):
     beam_w *= 1e-6
     beam_h = (beam_w / 2) * np.tan(np.pi/2 - apex_half_angle)
 
-    # specify working_path to save solved fsp file
+    # Specify working_path to save solved fsp file
     engine = LumericalEngine(mesh_accuracy=5, hide=hide, working_path=fsps_dir,lumerical_path=FDTDLoc,save_fsp=True)
 
     cavity_cells = []
@@ -150,14 +152,14 @@ def build_cavity(cavity_params):
       structures=[TriStructure(Vec3(0), Vec3(beam_w, apex_half_angle, beam_length), 
                   DielectricMaterial(n_beam, order=2, color="gray"), rot_angles=(np.pi/2, np.pi/2, 0))], engine=engine, center_shift = shift)
 
-    # By setting the save path here, the cavity will save itself after each simulation to this file
     print(cavity_params)
     cavity_name = "_".join([str(n) for n in cavity_params])
     print(cavity_name)
 
-    file_name = log_name[:-4]+"_"+cavity_name+"_"+str(iter_count)
-    cavity.save(file_name+".obj")
-    plot_geom(cavity,file_name+"_geom.png",hide)
+    # By setting the save path here, the cavity will save itself after each simulation to this file
+    file_name = os.path.join(save_dir, log_name[:-4] + "_" + cavity_name + "_" + str(iter_count))
+    cavity.save(file_name + ".obj")
+    plot_geom(cavity, file_name + "_geom.png",hide)
     return cavity, file_name
 
 def fitness(cavity_params):
@@ -198,7 +200,7 @@ def fitness(cavity_params):
     wavelen_pen = gauss(F, target_frequency, 4e12)
 
     # TODO: check if / 4 is correct
-    qx_pen = (gauss(qx, target_qx, 120000) + gauss(qx, target_qx, 60000) + 
+    qx_pen = (gauss(qx, target_qx, 120000) + gauss(qx, target_qx, 60000) +
               gauss(qx, target_qx, 30000) + gauss(qx, target_qx, 2000) / 4)
 
     qscat_max = 500000
@@ -209,8 +211,8 @@ def fitness(cavity_params):
 
     with open(log_name, "ab") as f:
         f.write(b"\n")
-        step_info = np.append(cavity_params, np.array([witness, wavelen_pen, purcell, 
-                                                       r1["qxmin"], r1["qxmax"], 
+        step_info = np.append(cavity_params, np.array([witness, wavelen_pen, purcell,
+                                                       r1["qxmin"], r1["qxmax"],
                                                        qscat, qtot, vmode, vmode_copy, F]))
         np.savetxt(f, step_info.reshape(1, step_info.shape[0]), fmt='%.6f')
 
@@ -229,13 +231,13 @@ def fitness(cavity_params):
         # (This should help avoid non cavities with artificially low mode volumes)
         source_frequency = F
         witness_rerun = fitness(cavity_params)
-        print("rerun. Fitness when source is recentered:",witness_rerun)
+        print("Rerun. Fitness when source is recentered:",witness_rerun)
         source_frequency = target_frequency
         return witness_rerun
 
     return witness
 
-log_name = f"cavity_run-{nmirrsL}-{ndefs}-{nmirrsR}_111722_00.txt"
+log_name = os.path.join(save_dir, f"cavity_run-{nmirrsL}-{ndefs}-{nmirrsR}.txt")
 
 # maxDef, beam_w, hxL, hyL, hxR, hyR, aL, aR
 p0 = np.array([0.14276, 0.483143,
@@ -251,9 +253,7 @@ p0 = np.array([0.14276, 0.483143,
 
 
 with open(log_name, "ab") as f:
-    f.write(b"maxDef    beam_w    hx    hy    a    fitness    wavelen_pen    purcell    qxmin    qxmax    qscat    qtot    vmode    vmode_copy    freq")
+    f.write(b"maxDef    beam_w    hxL    hyL    hxR    hyR    aL    aR    fitness    wavelen_pen    purcell    qxmin    qxmax    qscat    qtot    vmode    vmode_copy    freq")
 
 fitness_result = fitness(p0)
 print(fitness_result)
-
-
