@@ -2,15 +2,15 @@
 This example optimizes a cavity from a given starting geometry.
 """
 
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import sividl.sividl_devices as sivp
+
 from wvgsolver import Cavity1D, UnitCell, Vec3
 from wvgsolver.utils import BBox
 from wvgsolver.geometry import BoxStructure, TriStructure, CylinderStructure, DielectricMaterial, MeshRegion
 from wvgsolver.engine import LumericalEngine
-import os
-from scipy.optimize import minimize
-import numpy as np
-import matplotlib.pyplot as plt
-import sividl.sividl_devices as sivp
 
 
 #  Initialize Lumerical File Locations
@@ -28,6 +28,8 @@ source_frequency = 406.7e12
 target_qx = 6000
 hide = False
 
+def gauss(x, x0, sigma):
+    return np.exp(-((x - x0) / sigma) ** 2)
 
 
 def plot_geom(cavity, file_name, hide):
@@ -56,15 +58,14 @@ def plot_geom(cavity, file_name, hide):
 
     plt.close()
 
-    plt.vlines(a_coords,0.18,1.01,color='gray',alpha=0.3)
-    plt.hlines(1,np.min(x_coords),np.max(x_coords),colors='red',linestyle='dashed')
-    plt.plot(a_coords,a_s[:-1]/a_s[5],'ko-',label='a')
-    plt.plot(x_coords,hx/a_s[5],'go-',label='hx')
-    plt.plot(x_coords,hy/a_s[5],'bo-',label='hy')
+    plt.vlines(a_coords, 0.18, 1.01, color='gray', alpha=0.3)
+    plt.hlines(1, np.min(x_coords), np.max(x_coords), colors='red', linestyle='dashed')
+    plt.plot(a_coords, a_s[:-1] / a_s[5], 'ko-', label='a')
+    plt.plot(x_coords, hx/a_s[5], 'go-', label='hx')
+    plt.plot(x_coords, hy/a_s[5], 'bo-', label='hy')
 
     plt.ylabel(r"$\mathregular{a}_{\mathregular{nominal}}$",fontsize=14)
     plt.xlabel(r"Unit Cell Position ($\mu$m)",fontsize=12)
-
     plt.legend(loc=8)
 
     fig = plt.gcf()
@@ -139,8 +140,8 @@ def build_cavity(cavity_params):
     
     # shift the cavity so that the source is centered in the dielectric
     # shift = cavity_cells[int(len(cavity_cells)/2)].get_size().x/2
-    shift = all_a[int(len(all_a)/2)-1]/2
-    print("center cavity a is ", shift*2)
+    shift = all_a[len(all_a)//2 - 1] / 2
+    print("Center cavity a is ", 2 * shift)
 
     cavity = Cavity1D(
       unit_cells=cavity_cells,
@@ -166,55 +167,68 @@ def fitness(cavity_params):
     
     cavity, file_name = build_cavity(cavity_params)
     
-    man_mesh = MeshRegion(BBox(Vec3(0),Vec3(10e-6,0.7e-6,0.4e-6)), 12e-9, dy=None, dz=None)
+    man_mesh = MeshRegion(BBox(Vec3(0), Vec3(10e-6, 0.7e-6, 0.4e-6)), 12e-9, dy=None, dz=None)
 
     r1 = cavity.simulate("resonance", target_freq=source_frequency, source_pulselength=60e-15, 
                         analyze_time=600e-15, mesh_regions = [man_mesh], sim_size=Vec3(1.25, 3, 5.5))
 
-    qx = 1/(1/r1["qxmin"] + 1/r1["qxmax"])
+    qx = 1 / (1 / r1["qxmin"] + 1 / r1["qxmax"])
     qx1 = r1["qxmin"]
     qx2 = r1["qxmax"]
-    qy = 1/(2/r1["qymax"])
-    qz = 1/(1/r1["qzmin"] + 1/r1["qzmax"])
-    qscat = 1/((1/qy)+(1/qz))
-    qtot = 1/(1/qx + 1/qy + 1/qz)
+
+    qy = 1 / (2 / r1["qymax"])
+    qz = 1 / (1 / r1["qzmin"] + 1 / r1["qzmax"])
+
+    qscat = 1 / ((1 / qy)+(1 / qz))
+    qtot = 1 / (1 / qx + 1 / qy + 1 / qz)
+
     vmode = r1["vmode"]
     vmode_copy = vmode
     vmode = 1e6 if vmode < 0.48 else vmode
+
     qtot_max = 300000
-    purcell = qtot/vmode if qtot < qtot_max else qtot_max/vmode
+    purcell = min(qtot, qtot_max) / vmode
+
     F = r1["freq"]
-    wavelen = (2.99e8/F) * 1e9
+    wavelen = (2.99e8 / F) * 1e9 # nm
 
     print(f"F: {r1['freq']}, Vmode: {r1['vmode']}, "
           f"Qwvg: {1/(1/r1['qxmin'] + 1/r1['qxmax'])}, "
           f"Qsc: {1/(2/r1['qymax'] + 1/r1['qzmin'] + 1/r1['qzmax'])}")
     print(purcell)
 
-    wavelen_pen = np.exp(-((target_frequency-F)/4e12)**2)
+    wavelen_pen = gauss(F, target_frequency, 4e12)
 
-    qx_pen = (np.exp(-((target_qx-qx)/120000)**2)+np.exp(-((target_qx-qx)/60000)**2)
-              +np.exp(-((target_qx-qx)/30000)**2)+np.exp(-((target_qx-qx)/2000)**2)/4)
+    # TODO: check if / 4 is correct
+    qx_pen = (gauss(qx, target_qx, 120000) + gauss(qx, target_qx, 60000) + 
+              gauss(qx, target_qx, 30000) + gauss(qx, target_qx, 2000) / 4)
+
     qscat_max = 500000
-    guidedness = qscat/qx if qscat < qscat_max else qscat_max/qx
-    witness = -1*purcell*wavelen_pen*guidedness*qx_pen
+    guidedness = min(qscat, qscat_max) / qx
+
+    # FIGURE OF MERIT
+    witness = -1 * purcell * wavelen_pen * guidedness * qx_pen
 
     with open(log_name, "ab") as f:
         f.write(b"\n")
-        step_info = np.append(cavity_params,np.array([witness, wavelen_pen,purcell,r1["qxmin"],r1["qxmax"],qscat,qtot,vmode,vmode_copy,F]))
+        step_info = np.append(cavity_params, np.array([witness, wavelen_pen, purcell, 
+                                                       r1["qxmin"], r1["qxmax"], 
+                                                       qscat, qtot, vmode, vmode_copy, F]))
         np.savetxt(f, step_info.reshape(1, step_info.shape[0]), fmt='%.6f')
 
-    r1["xyprofile"].save(file_name+"_xy.png",title=f"Q = {qtot:.0f} \nQ_scat = {qscat:.04} Qx = {qx:.0f}\nV = {vmode_copy:.3f}")
-    r1["yzprofile"].save(file_name+"_yz.png",title=f"Q = {qtot:.0f} Q_scat = {qscat:.04}\n Qx1 = {qx1:.0f} Qx2 = {qx2:.0f}\nV = {vmode_copy:.3f} "+r"$\lambda$"+f" = {wavelen:.1f}")
+    r1["xyprofile"].save(file_name + "_xy.png", 
+                         title=f"Q = {qtot:.0f} \nQ_scat = {qscat:.04} Qx = {qx:.0f}\nV = {vmode_copy:.3f}")
+    r1["yzprofile"].save(file_name + "_yz.png",
+                         title=f"Q = {qtot:.0f} Q_scat = {qscat:.04}\n Qx1 = {qx1:.0f} Qx2 = {qx2:.0f}\nV = {vmode_copy:.3f} "+r"$\lambda$"+f" = {wavelen:.1f}")
 
     # Plot the quasipotential
     # r2 = cavity.simulate("quasipotential", target_freq=target_frequency, freqs=(0.25e15, 0.7e15, 100000), window_pos = 0)
     # r2.show()
 
-    # second condition ensures that we only rerun once
+    # Second condition ensures that we only rerun once
     if((wavelen_pen < rerun_thresh) and (source_frequency == target_frequency)):
-        # shift source frequency to cavity resonance and rerun simulation.
-        # (this should help avoid non cavities with artificially low mode volumes)
+        # Shift source frequency to cavity resonance and rerun simulation.
+        # (This should help avoid non cavities with artificially low mode volumes)
         source_frequency = F
         witness_rerun = fitness(cavity_params)
         print("rerun. Fitness when source is recentered:",witness_rerun)
