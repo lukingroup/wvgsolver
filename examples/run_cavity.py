@@ -82,11 +82,7 @@ def plot_geom(cavity, file_name, hide):
     plt.close()
 
 def build_cavity(cavity_params):
-    global nmirrsL
-    global nmirrsR
-    global ndefs
     global iter_count
-    global hide
     iter_count += 1
     maxDef, beam_w, hxL, hyL, hxR, hyR, aL, aR = cavity_params
     print(cavity_params)
@@ -165,11 +161,7 @@ def build_cavity(cavity_params):
     return cavity, file_name
 
 def fitness(cavity_params):
-    global iter_count
-    global rerun_thresh
-    global target_frequency
     global source_frequency
-    global target_qx
     
     cavity, file_name = build_cavity(cavity_params)
     
