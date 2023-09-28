@@ -16,16 +16,21 @@ from wvgsolver.engine import LumericalEngine
 #  Initialize Lumerical File Locations
 FDTDLoc = 'D:\\Program Files\\Lumerical\\v232'  # '/n/sw/lumerical-2021-R2-2717-7bf43e7149_seas'
 fsps_dir = './fsps'
-iter_count = 0
+
 nmirrsL = 7
 nmirrsR = 5
 ndefs = 5
-rerun_thresh = 0.955
-# The target resonance frequency, in Hz
-
-target_frequency = 406.7e12
-source_frequency = 406.7e12
 target_qx = 6000
+
+# Target resonance frequency (Hz)
+target_frequency = 406.7e12
+# Frequency of excitation light in simulation (Hz)
+source_frequency = 406.7e12
+# Threshold for how far the frequency can be off before we rerun
+rerun_thresh = 0.955
+
+n_beam = 2.4028
+iter_count = 0
 hide = False
 
 def gauss(x, x0, sigma):
@@ -72,7 +77,7 @@ def plot_geom(cavity, file_name, hide):
     fig.set_size_inches(6, 3)
     plt.tight_layout()
     plt.savefig(file_name)
-    if(not hide):
+    if not hide:
         plt.show()
     plt.close()
 
@@ -104,7 +109,7 @@ def build_cavity(cavity_params):
         'resonance_wavelength': 0.737
     }
 
-    n_beam = 2.4028
+
     apex_half_angle = 50*np.pi/180
 
 
@@ -127,7 +132,7 @@ def build_cavity(cavity_params):
         print(hx,hy,a)
         cell_size = Vec3(a,beam_w,beam_h)
         cell_box = TriStructure(Vec3(0), Vec3(beam_w, apex_half_angle, a), 
-                                DielectricMaterial(2.4028, order=2, color="blue"), 
+                                DielectricMaterial(n_beam, order=2, color="blue"), 
                                 rot_angles=(np.pi/2, np.pi/2, 0))
 
         # offset the hole to respect the way we define the relevant lattice constant
@@ -136,6 +141,7 @@ def build_cavity(cavity_params):
         cavity_cells += [unit_cell]
 
     # The length of the cavity beam
+    # TODO: why not calculated?
     beam_length = 15e-6
     
     # shift the cavity so that the source is centered in the dielectric
@@ -146,7 +152,7 @@ def build_cavity(cavity_params):
     cavity = Cavity1D(
       unit_cells=cavity_cells,
       structures=[TriStructure(Vec3(0), Vec3(beam_w, apex_half_angle, beam_length), 
-                  DielectricMaterial(2.4028, order=2, color="gray"), rot_angles=(np.pi/2, np.pi/2, 0))], engine=engine, center_shift = shift)
+                  DielectricMaterial(n_beam, order=2, color="gray"), rot_angles=(np.pi/2, np.pi/2, 0))], engine=engine, center_shift = shift)
 
     # By setting the save path here, the cavity will save itself after each simulation to this file
     print(cavity_params)
