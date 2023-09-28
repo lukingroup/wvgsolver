@@ -14,17 +14,18 @@ import sividl.sividl_devices as sivp
 
 
 #  Initialize Lumerical File Location
-FDTDLoc = '/n/sw/lumerical-2021-R2-2717-7bf43e7149_seas'
+FDTDLoc = 'D:\\Program Files\\Lumerical\\v232'
 iter_count = 0
-nmirrs = 3
-ndefs = 4
+nmirrsL = 7
+nmirrsR = 5
+ndefs = 5
 rerun_thresh = 0.955
 # The target resonance frequency, in Hz
 
 target_frequency = 406.7e12
 source_frequency = 406.7e12
-target_qx = 6000 #(12000 each side)
-hide=False
+target_qx = 11500
+hide = True
 
 
 
@@ -79,22 +80,20 @@ def build_cavity(cavity_params):
     global iter_count
     global hide
     iter_count += 1
-    maxDef, beam_w, hx, hy, aLR = cavity_params
-    hx *= aLR
-    hy *= aLR
-    beam_w *= aLR
+    maxDef, beam_w, hx, hy, aL, aR = cavity_params
+
     print(cavity_params)
     pcc_params = {
         'layer'               : 2,
-        'aL'                  : aLR,
-        'aR'                  : aLR,
+        'aL'                  : aL,
+        'aR'                  : aR,
         'hxL'                 : hx,
         'hyL'                 : hy,
         'hxR'                 : hx,
         'hyR'                 : hy,
         'maxDef'              : maxDef,
-        'nholesLMirror'       : nmirrs,
-        'nholesRMirror'       : nmirrs,
+        'nholesLMirror'       : nmirrsL,
+        'nholesRMirror'       : nmirrsR,
         'nholes_wvg-mirr_trans_L': 5,
         'nholes_wvg-mirr_trans_R': 5,
         'nholes_defect'       : ndefs,
@@ -217,15 +216,21 @@ def fitness(cavity_params):
 
     return witness
 
-log_name = f"optimization_111622_00/optimal_sym-{nmirrs}-{ndefs}-{nmirrs}_111622_00.txt"
-p0 = np.array([0.125,1.95,0.48,0.60,0.252])
-bounds = ((0.08,0.18),(1.0,2.2),(0.25,0.7),(0.25,0.7),(0.200,0.300))
-#maxDef, beam_w, hx, hy, aLR
+log_name = f"optimal_asymm_{nmirrsL}-{ndefs}-{nmirrsR}_111622_00.txt"
+
+#maxDef, beam_w, hx, hy, aL, aR
+p0 = np.array([0.1392,    0.482, 
+               0.1135849, 0.1605274,
+               0.2717,    0.2502])
+
+bounds = ((0.08, 0.18), (0.30, 0.55), 
+          (0.07, 0.17), (0.07, 0.17), 
+          (0.20, 0.30), (0.20, 0.30))
 
 
-with open(log_name, "ab") as f:
-    f.write(b"maxDef    beam_w    hx      hy        a         fitness    wavelen_pen  purcell       qxmin      qxmax      qscat      qtot      vmode    vmode_copy       freq")
+with open(log_name, "wb") as f:
+    f.write(b"maxDef    beam_w    hx      hy        aL         aR         fitness    wavelen_pen  purcell       qxmin      qxmax      qscat      qtot      vmode    vmode_copy       freq")
 
 
-popt = minimize(fitness,p0,bounds = bounds,method='Nelder-Mead')
+popt = minimize(fitness, p0, bounds = bounds,method='Nelder-Mead')
 print(popt)
