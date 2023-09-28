@@ -14,19 +14,19 @@ import sividl.sividl_devices as sivp
 
 
 #  Initialize Lumerical File Locations
-FDTDLoc = '/n/sw/lumerical-2021-R2-2717-7bf43e7149_seas'
+FDTDLoc = 'D:\\Program Files\\Lumerical\\v232'  # '/n/sw/lumerical-2021-R2-2717-7bf43e7149_seas'
 fsps_dir = './fsps'
 iter_count = 0
 nmirrsL = 7
-nmirrsR = 3
+nmirrsR = 5
 ndefs = 5
 rerun_thresh = 0.955
 # The target resonance frequency, in Hz
 
 target_frequency = 406.7e12
 source_frequency = 406.7e12
-target_qx = 6000 #(12000 each side)
-hide=False
+target_qx = 6000
+hide = False
 
 
 
@@ -148,10 +148,10 @@ def build_cavity(cavity_params):
                   DielectricMaterial(2.4028, order=2, color="gray"), rot_angles=(np.pi/2, np.pi/2, 0))], engine=engine, center_shift = shift)
 
     # By setting the save path here, the cavity will save itself after each simulation to this file
-    cavity_name = np.array2string(cavity_params,prefix='',separator='_')
-    cavity_name = cavity_name[1:]
-    cavity_name = cavity_name[:-1]
-    cavity_name = cavity_name.replace(" ","")
+    print(cavity_params)
+    cavity_name = "_".join([str(n) for n in cavity_params])
+    print(cavity_name)
+
     file_name = log_name[:-4]+"_"+cavity_name+"_"+str(iter_count)
     cavity.save(file_name+".obj")
     plot_geom(cavity,file_name+"_geom.png",hide)
@@ -186,22 +186,24 @@ def fitness(cavity_params):
     F = r1["freq"]
     wavelen = (2.99e8/F) * 1e9
 
-    print("F: %f, Vmode: %f, Qwvg: %f, Qsc: %f" % (
-      r1["freq"], r1["vmode"],
-      1/(1/r1["qxmin"] + 1/r1["qxmax"]),
-      1/(2/r1["qymax"] + 1/r1["qzmin"] + 1/r1["qzmax"])
-    ))
+    print(f"F: {r1['freq']}, Vmode: {r1['vmode']}, "
+          f"Qwvg: {1/(1/r1['qxmin'] + 1/r1['qxmax'])}, "
+          f"Qsc: {1/(2/r1['qymax'] + 1/r1['qzmin'] + 1/r1['qzmax'])}")
     print(purcell)
+
     wavelen_pen = np.exp(-((target_frequency-F)/4e12)**2)
+
     qx_pen = (np.exp(-((target_qx-qx)/120000)**2)+np.exp(-((target_qx-qx)/60000)**2)
               +np.exp(-((target_qx-qx)/30000)**2)+np.exp(-((target_qx-qx)/2000)**2)/4)
     qscat_max = 500000
     guidedness = qscat/qx if qscat < qscat_max else qscat_max/qx
     witness = -1*purcell*wavelen_pen*guidedness*qx_pen
+
     with open(log_name, "ab") as f:
         f.write(b"\n")
         step_info = np.append(cavity_params,np.array([witness, wavelen_pen,purcell,r1["qxmin"],r1["qxmax"],qscat,qtot,vmode,vmode_copy,F]))
         np.savetxt(f, step_info.reshape(1, step_info.shape[0]), fmt='%.6f')
+
     r1["xyprofile"].save(file_name+"_xy.png",title=f"Q = {qtot:.0f} \nQ_scat = {qscat:.04} Qx = {qx:.0f}\nV = {vmode_copy:.3f}")
     r1["yzprofile"].save(file_name+"_yz.png",title=f"Q = {qtot:.0f} Q_scat = {qscat:.04}\n Qx1 = {qx1:.0f} Qx2 = {qx2:.0f}\nV = {vmode_copy:.3f} "+r"$\lambda$"+f" = {wavelen:.1f}")
 
@@ -223,7 +225,17 @@ def fitness(cavity_params):
 
 log_name = f"cavity_run-{nmirrsL}-{ndefs}-{nmirrsR}_111722_00.txt"
 
-p0 = np.array([0.1392,0.482,0.1135849,0.1605274,0.1135849,0.1605274,0.2717,0.2502])
+# maxDef, beam_w, hxL, hyL, hxR, hyR, aL, aR
+p0 = np.array([0.14276, 0.483143,
+               0.108918, 0.164633,
+               0.108918, 0.164633,
+               0.273535, 0.251509])
+
+# p0 = np.array([0.1392,    0.482,
+#                0.1135849, 0.1605274,
+#                0.1135849, 0.1605274,
+#                0.2717,    0.2502])
+
 
 
 with open(log_name, "ab") as f:
