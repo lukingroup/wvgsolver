@@ -2,20 +2,26 @@
 This example optimizes a cavity from a given starting geometry.
 """
 
-from wvgsolver import Cavity1D, UnitCell, Vec3
-from wvgsolver.utils import BBox
-from wvgsolver.geometry import BoxStructure, TriStructure, CylinderStructure, DielectricMaterial, MeshRegion
-from wvgsolver.engine import LumericalEngine
 import os
+import sys
 from scipy.optimize import minimize
 import numpy as np
 import matplotlib.pyplot as plt
 import sividl.sividl_devices as sivp
+from datetime import datetime
+
+from wvgsolver import Cavity1D, UnitCell, Vec3
+from wvgsolver.utils import BBox
+from wvgsolver.geometry import BoxStructure, TriStructure, CylinderStructure, DielectricMaterial, MeshRegion
+from wvgsolver.engine import LumericalEngine
+
 
 
 #  Initialize Lumerical File Location
 FDTDLoc = 'D:\\Program Files\\Lumerical\\v232'
-iter_count = 0
+save_dir = "C:\\Users\\Qi\\Desktop\\WvgSolverOutput"
+fsps_dir = os.path.join(save_dir, 'fsps')
+
 nmirrsL = 7
 nmirrsR = 5
 ndefs = 5
@@ -70,19 +76,17 @@ def plot_geom(cavity, file_name, hide):
     fig.set_size_inches(6, 3)
     plt.tight_layout()
     plt.savefig(file_name)
-    if(not hide):
+    if not hide:
         plt.show()
     plt.close()
 
 def build_cavity(cavity_params):
-    global nmirrs
-    global ndefs
     global iter_count
-    global hide
     iter_count += 1
-    maxDef, beam_w, hx, hy, aL, aR = cavity_params
 
-    print(cavity_params)
+    maxDef, beam_w, hx, hy, aL, aR = cavity_params
+    print(f"Cavity params: {cavity_params}")
+
     pcc_params = {
         'layer'               : 2,
         'aL'                  : aL,
@@ -108,7 +112,7 @@ def build_cavity(cavity_params):
 
     cavity = sivp.AirholePCC_PeriodOnly(pcc_params)
     all_hx, all_hy, all_a = cavity.compute_geometry()
-    all_a = np.append(all_a,all_a[-1])
+    all_a = np.append(all_a, all_a[-1])
 
     # convert from microns to meters
     all_hx *= 1e-6
@@ -118,11 +122,12 @@ def build_cavity(cavity_params):
     beam_h = (beam_w / 2) * np.tan(np.pi/2 - apex_half_angle)
 
     # Use level 5 automeshing accuracy and save the unsolved fsp file with the .obj file
-    engine = LumericalEngine(mesh_accuracy=5, hide=hide, lumerical_path=FDTDLoc, save_fsp=True)
+    engine = LumericalEngine(mesh_accuracy=5, hide=hide, working_path=fsps_dir, lumerical_path=FDTDLoc, save_fsp=True)
 
     cavity_cells = []
+    print("Printing cavity hole size and periods...")
     for hx, hy, a in zip(all_hx, all_hy, all_a):
-        print(hx,hy,a)
+        print(hx, hy, a)
         cell_size = Vec3(a,beam_w,beam_h)
         cell_box = TriStructure(Vec3(0), Vec3(beam_w, apex_half_angle, a), 
                                 DielectricMaterial(2.4028, order=2, color="blue"), 
@@ -138,22 +143,19 @@ def build_cavity(cavity_params):
     
     # shift the cavity so that the source is centered in the dielectric
     # shift = cavity_cells[int(len(cavity_cells)/2)].get_size().x/2
-    shift = all_a[int(len(all_a)/2)-1]/2
-    print("center cavity a is ", shift*2)
+    shift = all_a[len(all_a) // 2 - 1] / 2
+    print("Center cavity a is ", 2 * shift)
 
     cavity = Cavity1D(
       unit_cells=cavity_cells,
       structures=[TriStructure(Vec3(0), Vec3(beam_w, apex_half_angle, beam_length), 
                   DielectricMaterial(2.4028, order=2, color="gray"), rot_angles=(np.pi/2, np.pi/2, 0))], engine=engine, center_shift = shift)
+    cavity_name = "_".join([str(n) for n in cavity_params])
 
     # By setting the save path here, the cavity will save itself after each simulation to this file
-    cavity_name = np.array2string(cavity_params,prefix='',separator='_')
-    cavity_name = cavity_name[1:]
-    cavity_name = cavity_name[:-1]
-    cavity_name = cavity_name.replace(" ","")
-    file_name = log_name[:-4]+"_"+cavity_name+"_"+str(iter_count)
-    cavity.save(file_name+".obj")
-    plot_geom(cavity,file_name+"_geom.png",hide)
+    file_name = os.path.join(save_dir, f"{log_name[:-4]}_{cavity_name}_{iter_count}")
+    cavity.save(file_name + ".obj")
+    plot_geom(cavity,file_name + "_geom.png", hide)
     return cavity, file_name
 
 def fitness(cavity_params):
@@ -165,9 +167,9 @@ def fitness(cavity_params):
     
     cavity, file_name = build_cavity(cavity_params)
     
-    man_mesh = MeshRegion(BBox(Vec3(0),Vec3(10e-6,0.7e-6,0.4e-6)), 12e-9, dy=None, dz=None)
+    man_mesh = MeshRegion(BBox(Vec3(0), Vec3(10e-6, 0.7e-6, 0.4e-6)), 12e-9, dy=None, dz=None)
 
-    r1 = cavity.simulate("resonance", target_freq=source_frequency, source_pulselength=60e-15, 
+    r1 = cavity.simulate("resonance", target_freq=source_frequency, source_pulselength=60e-15,
                         analyze_time=600e-15, mesh_regions = [man_mesh], sim_size=Vec3(1.25, 3, 5.5))
 
     qx = 1/(1/r1["qxmin"] + 1/r1["qxmax"])
@@ -199,10 +201,15 @@ def fitness(cavity_params):
     witness = -1*purcell*wavelen_pen*guidedness*qx_pen
     with open(log_name, "ab") as f:
         f.write(b"\n")
-        step_info = np.append(cavity_params,np.array([witness, wavelen_pen,purcell,r1["qxmin"],r1["qxmax"],qscat,qtot,vmode,vmode_copy,F]))
+        step_info = np.append(cavity_params, np.array([witness, wavelen_pen,purcell,
+                                                       r1["qxmin"],r1["qxmax"],
+                                                       qscat, qtot, vmode, vmode_copy, F]))
         np.savetxt(f, step_info.reshape(1, step_info.shape[0]), fmt='%.6f')
-    r1["xyprofile"].save(file_name+"_xy.png",title=f"Q = {qtot:.0f} \nQ_scat = {qscat:.04} Qx = {qx:.0f}\nV = {vmode_copy:.3f}")
-    r1["yzprofile"].save(file_name+"_yz.png",title=f"Q = {qtot:.0f} Q_scat = {qscat:.04}\n Qx1 = {qx1:.0f} Qx2 = {qx2:.0f}\nV = {vmode_copy:.3f} "+r"$\lambda$"+f" = {wavelen:.1f}")
+
+    r1["xyprofile"].save(file_name + "_xy.png", 
+                         title=f"Q = {qtot:.0f} \nQ_scat = {qscat:.04} Qx = {qx:.0f}\nV = {vmode_copy:.3f}")
+    r1["yzprofile"].save(file_name + "_yz.png", 
+                         title=f"Q = {qtot:.0f} Q_scat = {qscat:.04}\n Qx1 = {qx1:.0f} Qx2 = {qx2:.0f}\nV = {vmode_copy:.3f} "+r"$\lambda$"+f" = {wavelen:.1f}")
 
     # second condition ensures that we only rerun once
     if((wavelen_pen < rerun_thresh) and (source_frequency == target_frequency)):
@@ -216,15 +223,20 @@ def fitness(cavity_params):
 
     return witness
 
-log_name = f"optimal_asymm_{nmirrsL}-{ndefs}-{nmirrsR}_111622_00.txt"
+if len(sys.argv) == 2:
+    design_name = sys.argv[1]
+else:
+    design_name = input("Design name?")
+timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+log_name = os.path.join(save_dir, f"{timestamp}-{design_name}-optimal-{nmirrsL}-{ndefs}-{nmirrsR}.txt")
 
 #maxDef, beam_w, hx, hy, aL, aR
-p0 = np.array([0.1392,    0.482, 
+p0 = np.array([0.1392,    0.482,
                0.1135849, 0.1605274,
                0.2717,    0.2502])
 
-bounds = ((0.08, 0.18), (0.30, 0.55), 
-          (0.07, 0.17), (0.07, 0.17), 
+bounds = ((0.08, 0.18), (0.30, 0.55),
+          (0.07, 0.17), (0.07, 0.17),
           (0.20, 0.30), (0.20, 0.30))
 
 
@@ -233,4 +245,4 @@ with open(log_name, "wb") as f:
 
 
 popt = minimize(fitness, p0, bounds = bounds,method='Nelder-Mead')
-print(popt)
+print(f"Optimized parameters: {popt}")
