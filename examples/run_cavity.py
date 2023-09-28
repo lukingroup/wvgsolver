@@ -205,11 +205,9 @@ def fitness(cavity_params):
     r1["xyprofile"].save(file_name+"_xy.png",title=f"Q = {qtot:.0f} \nQ_scat = {qscat:.04} Qx = {qx:.0f}\nV = {vmode_copy:.3f}")
     r1["yzprofile"].save(file_name+"_yz.png",title=f"Q = {qtot:.0f} Q_scat = {qscat:.04}\n Qx1 = {qx1:.0f} Qx2 = {qx2:.0f}\nV = {vmode_copy:.3f} "+r"$\lambda$"+f" = {wavelen:.1f}")
 
-    r2 = cavity.simulate("quasipotential", target_freq=target_frequency, freqs=(0.25e15, 0.7e15, 100000), window_pos = 0)
-
     # Plot the quasipotential
-    r2.show()
-
+    # r2 = cavity.simulate("quasipotential", target_freq=target_frequency, freqs=(0.25e15, 0.7e15, 100000), window_pos = 0)
+    # r2.show()
 
     # second condition ensures that we only rerun once
     if((wavelen_pen < rerun_thresh) and (source_frequency == target_frequency)):
